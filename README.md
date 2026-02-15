@@ -1,10 +1,10 @@
 # ClawBridge Dashboard 🌉
 
+**🇺🇸 English** | [🇨🇳 中文](./README_CN.md)
+
 **ClawBridge** (formerly ClawLink) is a lightweight, real-time mission control center designed for **Clawdbot** and **OpenClaw** agents.
 
 It provides a mobile-friendly interface to monitor your AI agent's "brain" (thinking process), "hands" (tool execution), "wallet" (token usage), and "schedule" (cron jobs) form anywhere via a secure Cloudflare Tunnel.
-
-![Dashboard Preview](https://via.placeholder.com/800x400?text=ClawBridge+Dashboard+Preview)
 
 ## ✨ Features
 
