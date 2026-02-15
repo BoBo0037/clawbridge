@@ -58,7 +58,7 @@ function startTunnel(port, token) {
             const text = d.toString();
             console.log(`[CF] ${text}`);
             if (text.includes('Registered tunnel connection')) {
-                resolve('https://clawlink.geofast.app'); // Hardcoded success
+                resolve('https://clawbridge.app'); // Hardcoded success
             }
         });
 
