@@ -1,8 +1,4 @@
+# Ignore data and logs
+data/
 node_modules/
 .env
-.env.local
-logs/
-public/token_*.json
-public/activity_history.json
-cloudflared
-cloudflared.exe

@@ -1,0 +1,15 @@
+{
+  "date": "2026-02-15",
+  "stats": {
+    "input": 416617,
+    "output": 205,
+    "cost": 0.0417437,
+    "models": {
+      "gemini-3-pro-preview": {
+        "input": 416617,
+        "output": 205,
+        "cost": 0.0417437
+      }
+    }
+  }
+}

@@ -16,7 +16,7 @@ const wss = new WebSocketServer({ server });
 // Config from Env
 const SECRET_KEY = process.env.ACCESS_KEY || 'default-insecure';
 const TUNNEL_TOKEN = process.env.TUNNEL_TOKEN;
-const HISTORY_FILE = path.join(__dirname, 'public/activity_history.json');
+const LOG_DIR = path.join(__dirname, 'data/logs');
 
 app.use(express.json());
 
@@ -116,33 +116,29 @@ function getActiveContext() {
     return null;
 }
 
-// Helper: Save Activity
-let lastRecordedTask = 'System Idle'; // Init as idle
+// Helper: Save Activity (JSONL Append)
+let lastRecordedTask = 'System Idle';
 
 function logActivity(task) {
     if (!task || task === 'System Idle') return;
-    
-    // STRICT Dedup: Never log the exact same task twice consecutively
     if (task === lastRecordedTask) return;
     
     lastRecordedTask = task;
 
-    const entry = {
-        ts: new Date().toISOString(),
-        task: task
-    };
+    const now = new Date();
+    const ts = now.toISOString();
+    const entry = { ts, task };
+    
+    // Path: data/logs/YYYY-MM/DD.jsonl
+    const monthDir = path.join(LOG_DIR, ts.substring(0, 7)); // YYYY-MM
+    const logFile = path.join(monthDir, `${ts.substring(8, 10)}.jsonl`); // DD.jsonl
 
-    let history = [];
     try {
-        if (fs.existsSync(HISTORY_FILE)) {
-            history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
-        }
-    } catch(e) {}
-
-    history.push(entry);
-    if (history.length > 50) history = history.slice(-50); 
-
-    fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
+        if (!fs.existsSync(monthDir)) fs.mkdirSync(monthDir, { recursive: true });
+        fs.appendFileSync(logFile, JSON.stringify(entry) + '\n');
+    } catch(e) {
+        console.error('Log write failed:', e);
+    }
 }
 
 // --- File Watcher ---
@@ -246,7 +242,6 @@ function checkSystemStatus(callback) {
             taskText = `⚡ High CPU: ${topProc || 'Unknown'}`;
         }
 
-        // Logic Change: Handle Idle Reset here
         if (taskText === 'System Idle') {
             if (lastRecordedTask !== 'System Idle') {
                 lastRecordedTask = 'System Idle'; 
@@ -260,6 +255,7 @@ function checkSystemStatus(callback) {
             task: taskText,
             cpu: Math.round(totalCpu),
             mem: Math.round((1 - os.freemem() / os.totalmem()) * 100),
+            timezone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             lastHeartbeat: new Date().toISOString()
         });
     });
@@ -268,6 +264,43 @@ function checkSystemStatus(callback) {
 // API: Status
 app.get('/api/status', (req, res) => {
     checkSystemStatus((data) => res.json(data));
+});
+
+// API: Logs (JSONL Reader)
+app.get('/api/logs', (req, res) => {
+    const limit = parseInt(req.query.limit) || 100;
+    const dateStr = req.query.date || new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    
+    // Construct path
+    const month = dateStr.slice(0, 7);
+    const day = dateStr.slice(8, 10);
+    const logFile = path.join(LOG_DIR, month, `${day}.jsonl`);
+
+    if (!fs.existsSync(logFile)) {
+        return res.json([]);
+    }
+
+    try {
+        // Read entire file (usually small, <1MB/day)
+        // Optimization: For huge files, use `read-last-lines` package or stream reading
+        const content = fs.readFileSync(logFile, 'utf8');
+        const lines = content.trim().split('\n');
+        
+        // Parse from end (newest first)
+        const logs = [];
+        for (let i = lines.length - 1; i >= 0; i--) {
+            if (!lines[i]) continue;
+            try {
+                logs.push(JSON.parse(lines[i]));
+            } catch(e) {}
+            if (logs.length >= limit) break;
+        }
+        
+        res.json(logs);
+    } catch(e) {
+        console.error(e);
+        res.status(500).json({ error: 'Log read failed' });
+    }
 });
 
 // Background Loop
