@@ -24,11 +24,21 @@ app.use(express.json());
 
 // --- Magic Link Auth Middleware ---
 app.use((req, res, next) => {
+    // 1. Pass if authenticated
     if (req.query.key === SECRET_KEY) return next();
     if (req.headers['x-claw-key'] === SECRET_KEY) return next();
 
-    if (req.method === 'GET' && !req.path.startsWith('/api')) {
-        return res.send(`
+    // 2. Pass safe static assets
+    if (req.path.match(/\.(png|jpg|jpeg|svg|gif|ico|css|js)$/)) return next();
+    if (req.path === '/manifest.json') return next(); // Allow PWA manifest
+
+    // 3. API calls fail hard
+    if (req.path.startsWith('/api')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // 4. HTML pages redirect to login prompt
+    return res.send(`
             <!DOCTYPE html>
             <html>
             <head>
@@ -64,9 +74,7 @@ app.use((req, res, next) => {
                 </script>
             </body>
             </html>
-        `);
-    }
-    res.status(401).json({ error: 'Unauthorized' });
+    `);
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
