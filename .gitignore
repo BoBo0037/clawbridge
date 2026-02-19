@@ -1,4 +1,7 @@
-# Ignore data and logs
-data/
-node_modules/
+# Logs and Data
+data/logs/
+data/token_stats/
+dashboard.log
 .env
+node_modules/
+cloudflared
