@@ -383,7 +383,7 @@
             <div>Home</div>
         </a>
         <a class="nav-item" onclick="switchTab('memory')">
-            <div class="nav-icon">🧠</div>
+            <div class="nav-icon" style="font-size:18px;">🧠</div>
             <div>Memory</div>
         </a>
         <a class="nav-item" onclick="switchTab('tokens')">
@@ -907,6 +907,26 @@
         fetchStatus();
         
         setInterval(fetchStatus, 5000); 
+        /* Tab Swipe Logic */
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, false);
+        
+        document.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, false);
+        
+        function handleSwipe() {
+            if (currentTab !== 'memory') return;
+            const threshold = 50;
+            if (touchEndX < touchStartX - threshold) navMemory(1); // Swipe Left -> Next Day
+            if (touchEndX > touchStartX + threshold) navMemory(-1); // Swipe Right -> Prev Day
+        }
+        
     </script>
 </body>
 </html>
