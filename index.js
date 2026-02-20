@@ -579,9 +579,8 @@ app.post('/api/run/:id', (req, res) => {
 
 // API: Get Config (Safe subset)
 app.get('/api/config', (req, res) => {
-    // Only return safe public info, no secrets
+    // Return only minimal flags if needed, or nothing
     res.json({
-        domain: process.env.APP_DOMAIN || '',
         hasToken: !!process.env.TUNNEL_TOKEN
     });
 });
