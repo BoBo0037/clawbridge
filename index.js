@@ -8192,30 +8192,42 @@ app.post('/api/run/:id', (req, res) => {
 
 // API: Update Tunnel Token
 app.post('/api/config/token', (req, res) => {
-    const { token } = req.body;
+    const { token, domain } = req.body;
     if (!token) return res.status(400).json({ error: 'Token required' });
 
     try {
         const envPath = path.join(__dirname, '.env');
         let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
         
-        // Remove existing token lines
-        envContent = envContent.replace(/^TUNNEL_TOKEN=.*$/gm, '').replace(/^ENABLE_EMBEDDED_TUNNEL=.*$/gm, '');
+        // Remove existing lines
+        envContent = envContent.replace(/^TUNNEL_TOKEN=.*$/gm, '')
+                               .replace(/^ENABLE_EMBEDDED_TUNNEL=.*$/gm, '')
+                               .replace(/^APP_DOMAIN=.*$/gm, '');
         
-        // Append new token
+        // Append new config
         envContent += `\nTUNNEL_TOKEN=${token.trim()}\nENABLE_EMBEDDED_TUNNEL=true\n`;
+        if (domain) {
+            envContent += `APP_DOMAIN=${domain.trim()}\n`;
+        }
         
         fs.writeFileSync(envPath, envContent.trim() + '\n');
         
-        // Restart service via systemd if possible, or just exit to let supervisor restart
-        // Here we just exit, assuming systemd/docker will restart us.
-        res.json({ status: 'ok', message: 'Token saved. Restarting...' });
+        res.json({ status: 'ok', message: 'Config saved. Restarting...' });
         
         setTimeout(() => process.exit(0), 1000);
         
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// API: Get Config (Safe subset)
+app.get('/api/config', (req, res) => {
+    // Only return safe public info, no secrets
+    res.json({
+        domain: process.env.APP_DOMAIN || '',
+        hasToken: !!process.env.TUNNEL_TOKEN
+    });
 });
 
 // WS Heartbeat
