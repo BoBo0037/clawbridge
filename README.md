@@ -1,82 +1,57 @@
-# ClawBridge 🌉
+# ClawBridge Dashboard (OpenClaw Skill)
 
-> **The Missing Mobile Link for OpenClaw/Clawdbot Agents.**
+![ClawBridge](https://img.shields.io/badge/OpenClaw-Compatible-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
-[🇨🇳 中文文档 (Chinese)](README_CN.md)
-
-ClawBridge is a lightweight, mobile-first dashboard designed to run alongside your **Clawdbot** instance. It provides real-time monitoring, cost tracking, and task management from any device.
-
-<p align="center">
-  <img src="public/icon.svg" width="120" alt="ClawBridge Logo">
-</p>
+**Mobile-First Monitoring for Autonomous Agents.**
+ClawBridge turns your OpenClaw agent into a pocket-sized companion. View real-time thoughts, track token costs, and manage missions from anywhere.
 
 ## ✨ Features
+*   **Live Activity Feed**: Watch your agent "think" and execute tools in real-time.
+*   **Memory Timeline**: Browse your agent's daily logs and long-term memory.
+*   **Token Economics**: Track daily/monthly LLM costs and usage trends.
+*   **Mission Control**: View and trigger cron jobs manually.
+*   **Zero-Config Remote**: Instant Cloudflare Tunnel integration for secure public access.
 
-*   **📱 Mobile-First App Shell**: Native-like experience with PWA support (Add to Home Screen).
-*   **🩺 System Vitals**: Real-time CPU & Memory usage monitoring.
-*   **📜 Live Activity Feed**: Watch your agent "think" and execute tools in real-time.
-*   **💰 Token Economy**: Track spending (Input/Output cost) with daily trends and monthly forecasts. Supports 340+ models via OpenRouter pricing.
-*   **🚀 Mission Control**: View and manually trigger Cron jobs safely.
-*   **🛡️ Secure**: Token-based Magic Link authentication. No external dependencies.
+## 🚀 Installation
 
-## 🚀 Quick Start (Install Script)
+### Option A: The "Agent Handover" (Recommended)
+Just ask your OpenClaw agent:
+> "Install ClawBridge for me."
 
-The easiest way to install or update ClawBridge.
+Your agent will download the code. Then, **you** finish the security setup in your terminal:
+```bash
+cd skills/clawbridge-dashboard
+./install.sh
+```
 
-1.  **Run the installer**:
-    ```bash
-    curl -fsSL https://raw.githubusercontent.com/dreamwing/clawbridge-openclaw-mobile-dashboard/master/install.sh | bash
-    ```
+### Option B: Manual One-Liner
+Run this on your OpenClaw server (Ubuntu/Debian):
+```bash
+git clone https://github.com/dreamwing/clawbridge-openclaw-mobile-dashboard skills/clawbridge-dashboard && \
+cd skills/clawbridge-dashboard && \
+npm install --production && \
+./install.sh
+```
 
-2.  **Access**: The script will output a magic URL (e.g., `http://YOUR_IP:3000/?key=...`). Open this on your phone.
+## 🔐 Configuration (Zero-Config)
+We believe in "Ghost Mode" security.
+*   **No Domain Input**: The dashboard never asks for or stores your domain name.
+*   **Token Only**: You only provide the Cloudflare Tunnel Token during install.
+*   **Access Key**: A random secret key is generated for you.
 
-## ⚙️ Manual Installation
+**To access remotely:**
+1.  Map a domain (e.g. `dash.yoursite.com`) to your tunnel in Cloudflare Zero Trust.
+2.  Visit `https://dash.yoursite.com/?key=<YOUR_SECRET_KEY>`.
 
-If you prefer to set it up yourself:
+## 📱 Mobile App (PWA)
+1.  Open the dashboard in Safari (iOS) or Chrome (Android).
+2.  Tap "Share" -> "Add to Home Screen".
+3.  Launch it like a native app (full screen, no browser bar).
 
-1.  **Clone the repo**:
-    ```bash
-    git clone https://github.com/dreamwing/clawbridge-openclaw-mobile-dashboard.git
-    cd clawbridge-openclaw-mobile-dashboard
-    ```
+## 🛠️ Tech Stack
+*   **Backend**: Node.js (Express, WS)
+*   **Frontend**: Vanilla JS (Zero build step, ultra-lightweight)
+*   **Tunnel**: Cloudflared
 
-2.  **Install dependencies**:
-    ```bash
-    npm install --production
-    ```
-
-3.  **Configure**:
-    Copy the example configuration:
-    ```bash
-    cp .env.example .env
-    ```
-    Then edit `.env` to set your `ACCESS_KEY` (use a strong random string).
-
-4.  **Run**:
-    ```bash
-    node index.js
-    ```
-
-## 🧩 Configuration
-
-### Custom Model Pricing
-ClawBridge comes with a comprehensive pricing list (`data/config/pricing.sample.json`). To customize rates:
-
-1.  Copy the sample to the active config:
-    ```bash
-    cp data/config/pricing.sample.json data/config/pricing.json
-    ```
-2.  Edit `data/config/pricing.json`. Keys match the model names in your logs (e.g., `openai/gpt-4o`).
-
-### PWA (Add to Home Screen)
-1.  Open ClawBridge in Safari (iOS) or Chrome (Android).
-2.  Tap **Share** -> **Add to Home Screen**.
-3.  Launch it like a native app (full screen, no address bar).
-
-## 🔒 Security Note
-*   ClawBridge runs locally on your server.
-*   Data is stored in `data/` and is **NOT** uploaded to any cloud.
-*   Ensure your firewall allows traffic on Port 3000 (or use a Tunnel).
-
-## License
-MIT
+---
+*Part of the DreamWing OpenClaw Ecosystem.*

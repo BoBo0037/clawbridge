@@ -1,82 +1,57 @@
-# ClawBridge 🌉 (中文文档)
+# ClawBridge Dashboard (OpenClaw Skill)
 
-> **为 OpenClaw/Clawdbot 量身打造的移动端控制台。**
+![ClawBridge](https://img.shields.io/badge/OpenClaw-Compatible-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
-[🇺🇸 English Documentation](README.md)
+**专为 Autonomous Agents 打造的移动端监控台。**
+ClawBridge 将您的 OpenClaw Agent 变成一个随身携带的数字伙伴。随时随地查看实时思考、Token 成本和任务状态。
 
-ClawBridge 是一个轻量级、移动端优先的仪表盘，专为监控和管理 **Clawdbot** 智能体而生。无论你身在何处，都能实时掌握 Agent 的思考过程、成本消耗和任务状态。
+## ✨ 核心特性
+*   **Live Activity**: 实时观看 Agent 的思考过程和工具调用（支持自动去重）。
+*   **Memory Timeline**: 浏览 Agent 的每日日志和长期记忆（支持手势滑动）。
+*   **Token 经济学**: 追踪每日/每月的 LLM 消耗成本和趋势。
+*   **Mission Control**: 手动触发 Cron 定时任务。
+*   **零配置远程访问**: 内置 Cloudflare Tunnel 支持，安全暴露到公网。
 
-<p align="center">
-  <img src="public/icon.svg" width="120" alt="ClawBridge Logo">
-</p>
+## 🚀 安装指南
 
-## ✨ 核心功能
+### 方法 A: "Agent 代劳" (推荐)
+直接告诉你的 OpenClaw Agent：
+> "帮我安装 ClawBridge。"
 
-*   **📱 原生级体验**: 支持 PWA (添加到主屏幕)，全屏运行，如同原生 App。
-*   **🩺 系统监控**: 实时查看服务器 CPU 和内存负载。
-*   **📜 实时日志流**: 看着你的 Agent "思考"、调用工具、读写文件。
-*   **💰 成本账单**: 每日 Token 消耗统计、趋势图、月度预测。内置 340+ 模型（含 DeepSeek, Claude, GPT-4o）的最新价格表。
-*   **🚀 任务中心**: 查看 Cron 定时任务状态，支持手动触发执行。
-*   **🛡️ 安全隐私**: 基于 Magic Link 鉴权。数据纯本地存储，绝不上传云端。
+Agent 会自动下载代码并构建环境。然后，**你** 只需要在终端执行最后一步安全配置：
+```bash
+cd skills/clawbridge-dashboard
+./install.sh
+```
 
-## 🚀 快速开始 (一键安装)
+### 方法 B: 手动安装
+在你的 OpenClaw 服务器 (Ubuntu/Debian) 上执行：
+```bash
+git clone https://github.com/dreamwing/clawbridge-openclaw-mobile-dashboard skills/clawbridge-dashboard && \
+cd skills/clawbridge-dashboard && \
+npm install --production && \
+./install.sh
+```
 
-这是安装或更新 ClawBridge 最简单的方法。
+## 🔐 配置 (隐形模式)
+我们采用 "Ghost Mode" 安全设计：
+*   **不记录域名**: 系统从未询问、也不存储您的公网域名。
+*   **只认 Token**: 安装时只需粘贴 Cloudflare Tunnel Token。
+*   **随机密钥**: 系统会自动生成一个 Access Key。
 
-1.  **运行安装脚本**:
-    ```bash
-    curl -fsSL https://raw.githubusercontent.com/dreamwing/clawbridge-openclaw-mobile-dashboard/master/install.sh | bash
-    ```
+**如何远程访问：**
+1.  在 Cloudflare Zero Trust 后台，将域名 (如 `dash.yoursite.com`) 绑定到该 Tunnel。
+2.  在浏览器访问 `https://dash.yoursite.com/?key=<YOUR_SECRET_KEY>`。
 
-2.  **访问**: 脚本运行结束后会输出一个专属链接 (例如 `http://YOUR_IP:3000/?key=...`)。请复制并在手机浏览器打开。
+## 📱 移动端体验 (PWA)
+1.  在 Safari (iOS) 或 Chrome (Android) 中打开链接。
+2.  点击 "分享" -> "添加到主屏幕"。
+3.  即可像原生 App 一样全屏运行。
 
-## ⚙️ 手动安装
+## 🛠️ 技术栈
+*   **Backend**: Node.js (Express, WS)
+*   **Frontend**: Vanilla JS (无构建步骤，极轻量)
+*   **Tunnel**: Cloudflared
 
-如果你更喜欢自己动手：
-
-1.  **克隆仓库**:
-    ```bash
-    git clone https://github.com/dreamwing/clawbridge-openclaw-mobile-dashboard.git
-    cd clawbridge-openclaw-mobile-dashboard
-    ```
-
-2.  **安装依赖**:
-    ```bash
-    npm install --production
-    ```
-
-3.  **配置**:
-    复制示例配置文件:
-    ```bash
-    cp .env.example .env
-    ```
-    然后编辑 `.env` 文件，设置 `ACCESS_KEY` (建议使用随机生成的安全字符串)。
-
-4.  **运行**:
-    ```bash
-    node index.js
-    ```
-
-## 🧩 高级配置
-
-### 自定义模型价格
-ClawBridge 内置了一份详尽的价格表 (`data/config/pricing.sample.json`)。如果你使用的是特殊渠道 API 或私有模型，可以自定义价格：
-
-1.  复制样本文件：
-    ```bash
-    cp data/config/pricing.sample.json data/config/pricing.json
-    ```
-2.  编辑 `data/config/pricing.json`。Key 需要与日志中的模型名称匹配 (例如 `deepseek/deepseek-chat`)。
-
-### PWA (安装到手机)
-1.  在 Safari (iOS) 或 Chrome (Android) 中打开 ClawBridge 链接。
-2.  点击 **分享** 按钮 -> 选择 **添加到主屏幕**。
-3.  现在的它就是一个全屏运行的独立 App 了！
-
-## 🔒 安全说明
-*   ClawBridge 运行在你的私有服务器上。
-*   所有统计数据存储在 `data/` 目录下，**绝不会** 上传到任何外部服务器。
-*   请确保你的防火墙允许 3000 端口流量 (或配合 Cloudflare Tunnel 使用)。
-
-## 许可证
-MIT
+---
+*DreamWing OpenClaw 生态系统组件.*
