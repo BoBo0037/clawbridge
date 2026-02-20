@@ -389,13 +389,12 @@ app.post('/api/gateway/restart', (req, res) => {
     // Graceful Stop first
     exec("pkill -SIGTERM -f 'openclaw gateway' || true", () => {
         setTimeout(() => {
-            // Force start (using 'openclaw' in PATH)
-            exec("openclaw gateway start --background", (err, stdout, stderr) => {
+            // Force start
+            const cmd = `${getOpenClawCommand()} gateway start --background`;
+            exec(cmd, (err, stdout, stderr) => {
                  if (err) {
-                     // Fallback to absolute path if PATH fails
-                     exec("/root/.nvm/versions/node/v22.22.0/bin/openclaw gateway start --background", () => {
-                        res.json({status:'restarted (fallback path)'});
-                     });
+                     console.error('Restart failed:', stderr);
+                     res.json({status:'error', message: stderr});
                  } else {
                      res.json({status:'restarted'});
                  }
@@ -404,10 +403,29 @@ app.post('/api/gateway/restart', (req, res) => {
     });
 });
 
+// Helper: Resolve OpenClaw Binary
+function getOpenClawCommand() {
+    // 1. Env Var (User Override)
+    if (process.env.OPENCLAW_PATH) return process.env.OPENCLAW_PATH;
+
+    // 2. Try standard command (works if in PATH)
+    try {
+        execSync('which openclaw');
+        return 'openclaw';
+    } catch (e) {}
+
+    // 3. Fallback: Hardcoded path for this specific environment (Clawdbot Standard Env)
+    // This is useful for systemd services where PATH might be minimal
+    const localPath = '/root/.nvm/versions/node/v22.22.0/bin/openclaw';
+    if (fs.existsSync(localPath)) return localPath;
+
+    // 4. Give up, hope 'openclaw' works or user sets env
+    return 'openclaw';
+}
+
 // API: Cron
 app.get('/api/cron', (req, res) => {
-    // FIX: Use absolute path to openclaw binary to ensure systemd execution works
-    const cmd = '/root/.nvm/versions/node/v22.22.0/bin/openclaw cron list --json';
+    const cmd = `${getOpenClawCommand()} cron list --json`;
     
     exec(cmd, { maxBuffer: 1024 * 1024 * 5 }, (err, stdout, stderr) => {
         if (err) {
@@ -483,8 +501,8 @@ app.get('/api/memory', (req, res) => {
 });
 
 app.post('/api/run/:id', (req, res) => {
-    // Use 'openclaw' command
-    exec(`openclaw cron run ${req.params.id}`);
+    // Use dynamic command
+    exec(`${getOpenClawCommand()} cron run ${req.params.id}`);
     res.json({status:'triggered'});
 });
 
