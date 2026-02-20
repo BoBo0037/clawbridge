@@ -82,19 +82,22 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Helper: Get Active Context
 function getActiveContext() {
     try {
-        // Updated Path for OpenClaw V2
-        // Dynamic path resolution based on CWD
-        const sessionsPath = path.join(process.cwd(), '../../.openclaw/sessions/sessions.json');
+        // Updated Path for OpenClaw V2 (Standard)
+        const sessionsPath = '/root/.openclaw/agents/main/sessions/sessions.json';
         
-        // Fallback absolute path
-        const altSessionsPath = '/root/clawd/.openclaw/sessions/sessions.json';
+        // Fallback: Local dev or legacy paths
+        const altPaths = [
+            path.join(process.cwd(), '../../.openclaw/sessions/sessions.json'),
+            '/root/clawd/.openclaw/sessions/sessions.json',
+            '/root/.clawdbot/agents/main/sessions/sessions.json'
+        ];
         
         let targetPath = sessionsPath;
-        if (!fs.existsSync(targetPath) && fs.existsSync(altSessionsPath)) {
-            targetPath = altSessionsPath;
+        if (!fs.existsSync(targetPath)) {
+            const found = altPaths.find(p => fs.existsSync(p));
+            if (found) targetPath = found;
+            else return null;
         }
-
-        if (!fs.existsSync(targetPath)) return null;
 
         const sessions = JSON.parse(fs.readFileSync(targetPath, 'utf8'));
         let latestSession = null;
@@ -107,7 +110,7 @@ function getActiveContext() {
             }
         });
 
-        if (!latestSession || (Date.now() - maxTime > 10000)) return null;
+        if (!latestSession || (Date.now() - maxTime > 15000)) return null; // Increased timeout slightly
 
         const logFile = latestSession.sessionFile;
         if (!fs.existsSync(logFile)) return null;
@@ -118,6 +121,13 @@ function getActiveContext() {
         for (const line of lines) {
             try {
                 const event = JSON.parse(line);
+                // Look for tool calls or thinking
+                if (event.type === 'tool_call' || (event.message && event.message.content)) {
+                     // ... existing parsing logic ...
+                     // Simplified check for now to catch raw events if format changed
+                     if (event.tool) return `🔧 ${event.tool} ${JSON.stringify(event.arguments || {}).substring(0, 50)}`;
+                }
+                
                 if (event.message && event.message.content) {
                     const tool = event.message.content.find(c => c.type === 'toolCall');
                     if (tool) {
