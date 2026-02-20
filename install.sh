@@ -87,7 +87,50 @@ else
     echo "sudo systemctl start clawbridge"
 fi
 
-# 5. Summary
+# 5. Remote Access (Cloudflare Tunnel)
+echo -e "\n${BLUE}🌐 Remote Access Configuration${NC}"
+read -p "Do you want to expose this dashboard to the public internet via Cloudflare Tunnel? (y/N) " ENABLE_TUNNEL
+
+if [[ "$ENABLE_TUNNEL" =~ ^[Yy]$ ]]; then
+    if ! command -v cloudflared &> /dev/null; then
+        echo "⬇️ Downloading cloudflared..."
+        # Detect arch
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "x86_64" ]]; then
+            wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -O cloudflared
+        else
+            echo "❌ Architecture $ARCH not supported for auto-download."
+            exit 1
+        fi
+        chmod +x cloudflared
+    fi
+
+    echo -e "${YELLOW}👉 Run this command to login to Cloudflare (in a separate terminal):${NC}"
+    echo "   ./cloudflared tunnel login"
+    echo -e "   Then create a tunnel: ./cloudflared tunnel create clawbridge"
+    echo -e "   Then add token to .env: TUNNEL_TOKEN=..."
+    
+    # We can't fully automate this without user interaction or token paste.
+    # Let's offer the "Quick Tunnel" (TryCloudflare) option for instant testing?
+    # Actually, Quick Tunnels don't require login but URL changes every time.
+    # Let's ask for token paste if they have one.
+    
+    read -p "Paste your Cloudflare Tunnel Token (or press Enter to skip): " CF_TOKEN
+    if [ ! -z "$CF_TOKEN" ]; then
+        echo "TUNNEL_TOKEN=$CF_TOKEN" >> "$ENV_FILE"
+        echo "ENABLE_EMBEDDED_TUNNEL=true" >> "$ENV_FILE"
+        echo "✅ Token saved. Tunnel will start with dashboard."
+        
+        # Restart service to pick up new env
+        if [ "$USE_USER_SYSTEMD" = true ]; then
+            systemctl --user restart clawbridge
+        fi
+    fi
+fi
+
+# 6. Summary
 IP=$(hostname -I | awk '{print $1}')
 PORT=${PORT:-3000}
 echo -e "\n${GREEN}🎉 Installation Complete!${NC}"
