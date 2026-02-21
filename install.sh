@@ -41,23 +41,66 @@ fi
 APP_DIR=$(pwd)
 echo -e "${GREEN}📂 Installing in: $APP_DIR${NC}"
 
+# Stop existing instances to allow port reuse
+pkill -f "node index.js" || true
+systemctl --user stop clawbridge >/dev/null 2>&1 || true
+
 # 2. Install Dependencies
 echo "📦 Installing dependencies..."
 npm install --production
 
 # 3. Setup Config/Env
 ENV_FILE="$APP_DIR/.env"
+CURRENT_PORT=3000
+
+# Load existing port preference
+if [ -f "$ENV_FILE" ]; then
+    # Read PORT manually to avoid sourcing entire file yet
+    EXISTING_PORT=$(grep "^PORT=" "$ENV_FILE" | cut -d'=' -f2)
+    if [ ! -z "$EXISTING_PORT" ]; then CURRENT_PORT=$EXISTING_PORT; fi
+fi
+
+# Find available port
+DETECTED_PORT=$(node -e "
+const net = require('net');
+let port = parseInt('$CURRENT_PORT') || 3000;
+function check() {
+  const s = net.createServer();
+  s.once('error', () => { port++; check(); });
+  s.once('listening', () => { s.close(); console.log(port); });
+  s.listen(port);
+}
+check();
+")
+
+if [ "$DETECTED_PORT" != "$CURRENT_PORT" ]; then
+    echo -e "${YELLOW}⚠️  Port $CURRENT_PORT is busy. Switching to available port: $DETECTED_PORT.${NC}"
+fi
+
+PORT=$DETECTED_PORT
+
 if [ ! -f "$ENV_FILE" ]; then
     echo "⚙️ Generating .env file..."
-    # Generate random key
     RAND_KEY=$(openssl rand -hex 16)
     echo "ACCESS_KEY=$RAND_KEY" > "$ENV_FILE"
-    echo "PORT=3000" >> "$ENV_FILE"
+    echo "PORT=$PORT" >> "$ENV_FILE"
     echo -e "${YELLOW}🔑 Generated Access Key: $RAND_KEY${NC}"
 else
-    echo "✅ Existing .env found."
+    echo "✅ Updating .env configuration..."
+    # Update or Append PORT
+    if grep -q "^PORT=" "$ENV_FILE"; then
+        sed -i "s/^PORT=.*/PORT=$PORT/" "$ENV_FILE"
+    else
+        echo "PORT=$PORT" >> "$ENV_FILE"
+    fi
+    
     source "$ENV_FILE"
-    RAND_KEY=$ACCESS_KEY
+    if [ -z "$ACCESS_KEY" ]; then
+        RAND_KEY=$(openssl rand -hex 16)
+        echo "ACCESS_KEY=$RAND_KEY" >> "$ENV_FILE"
+    else
+        RAND_KEY=$ACCESS_KEY
+    fi
 fi
 
 # 4. Setup Systemd (Root required for system-wide, but let's try user first)
