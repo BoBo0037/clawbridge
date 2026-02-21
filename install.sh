@@ -216,20 +216,20 @@ if [[ "$ENABLE_TUNNEL" =~ ^[Yy]$ ]] || [ "$USE_VPN" = true ]; then
         # Normal Cloudflare Logic
         if ! command -v cloudflared &> /dev/null; then
             echo "⬇️ Downloading cloudflared..."
-        # Detect arch
-        ARCH=$(uname -m)
-        if [[ "$ARCH" == "x86_64" ]]; then
-            wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
-        elif [[ "$ARCH" == "aarch64" ]]; then
-            wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -O cloudflared
-        else
-            echo "❌ Architecture $ARCH not supported for auto-download."
-            exit 1
+            # Detect arch
+            ARCH=$(uname -m)
+            if [[ "$ARCH" == "x86_64" ]]; then
+                wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+            elif [[ "$ARCH" == "aarch64" ]]; then
+                wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -O cloudflared
+            else
+                echo "❌ Architecture $ARCH not supported for auto-download."
+                exit 1
+            fi
+            chmod +x cloudflared
         fi
-        chmod +x cloudflared
-    fi
 
-    # Interactive: If no token and NOT quick mode, ask for it
+        # Interactive: If no token and NOT quick mode, ask for it
     if [ -z "$CF_TOKEN" ] && [ "$QUICK_TUNNEL" = false ]; then
         echo -e "${YELLOW}👉 Run this command to login to Cloudflare (in a separate terminal):${NC}"
         echo "   ./cloudflared tunnel login"
