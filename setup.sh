@@ -31,4 +31,6 @@ fi
 # 3. Run Install
 echo "🚀 Launching setup..."
 chmod +x install.sh
+# Force quick mode for zero-friction
 ./install.sh --quick
+

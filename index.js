@@ -545,6 +545,9 @@ setInterval(() => {
 }, 1000);
 
 async function main() {
+    // Cleanup old quick tunnel file
+    try { fs.unlinkSync(path.join(__dirname, '.quick_tunnel_url')); } catch(e){}
+
     server.listen(PORT, '::', async () => {
         console.log(`[Dashboard] Local: http://[::]:${PORT}`);
         if (process.env.ENABLE_EMBEDDED_TUNNEL === 'true') {
