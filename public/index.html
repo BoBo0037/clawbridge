@@ -240,6 +240,9 @@
                     <span class="legend-icon">⚡</span>
                     <div class="legend-text"><strong style="color:#f8fafc">System</strong><span>High CPU or resource alerts</span></div>
                 </div>
+                <div style="margin-top:10px; font-size:10px; color:var(--text-dim); line-height:1.4; border-top:1px solid var(--border); padding-top:10px;">
+                    <strong>Note:</strong> Monitoring polls every 3 seconds to minimize CPU usage. Extremely short-lived scripts (<3s) may not be captured in real-time logs.
+                </div>
             </div>
         </div>
     </div>
@@ -1048,6 +1051,7 @@
         fetchStatus();
         
         setInterval(fetchStatus, 5000); 
+
         /* Tab Swipe Logic */
         let touchStartX = 0;
         let touchEndX = 0;

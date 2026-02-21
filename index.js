@@ -30,15 +30,18 @@ const TOKEN_FILE = path.join(__dirname, 'data/token_stats/latest.json');
 const ID_FILE = path.join(__dirname, 'data/last_id.txt'); 
 const ANALYZE_SCRIPT = path.join(__dirname, 'scripts/analyze.js');
 
-app.use(express.json());
-
-// Load last ID from disk to prevent duplicates on restart
+// Global State for Deduplication
+global.lastLoggedActivity = null;
+global.lastLoggedCpu = null;
 let lastProcessedId = null;
+
 try {
     if (fs.existsSync(ID_FILE)) {
         lastProcessedId = fs.readFileSync(ID_FILE, 'utf8').trim();
     }
 } catch (e) {}
+
+app.use(express.json());
 
 // --- Magic Link Auth Middleware ---
 app.use((req, res, next) => {
@@ -98,6 +101,10 @@ function getActiveContext() {
 
         if (!latestSession) return null;
 
+        // Only consider "Active" if updated within last 15 seconds
+        // (Allows for long-running tools like web_search to still show as busy)
+        if (Date.now() - maxTime > 15000) return null;
+
         const logFile = latestSession.sessionFile;
         if (!fs.existsSync(logFile)) return null;
 
@@ -108,11 +115,13 @@ function getActiveContext() {
             try {
                 const event = JSON.parse(line);
                 
-                if (event.type === 'message' && event.message && event.message.content) {
+                // 1. Capture Assistant Messages (Thinking + Tool Call Requests)
+                if (event.type === 'message' && event.message && event.message.role === 'assistant' && event.message.content) {
                     const msgId = event.id;
                     const content = event.message.content;
                     const events = [];
 
+                    // Extract Thinking
                     const thinking = content.find(c => c.type === 'thinking');
                     if (thinking && thinking.thinking) {
                         let text = thinking.thinking.replace(/^[#\*\- ]+/, '').replace(/\n/g, ' ').trim();
@@ -120,6 +129,7 @@ function getActiveContext() {
                         events.push(`🧠 ${text}`);
                     }
 
+                    // Extract Tool Call Request
                     const tool = content.find(c => c.type === 'toolCall');
                     if (tool) {
                         let argStr = '';
@@ -127,49 +137,37 @@ function getActiveContext() {
                             if (tool.name === 'web_search') argStr = `"${tool.arguments.query}"`;
                             else if (tool.name === 'read') argStr = tool.arguments.path || tool.arguments.file_path;
                             else if (tool.name === 'exec') argStr = tool.arguments.command;
-                            else if (tool.name === 'message' || tool.name === 'sessions_send') {
-                                // Skip chat replies from "Tool Calls" section
-                                // We rely on the Text Content parser below to capture conversation
-                                // But if text content extraction is disabled/filtered, we might miss it.
-                                // For now, let's keep suppressing redundant tool calls.
-                                continue; 
-                            }
+                            else if (tool.name === 'message' || tool.name === 'sessions_send') continue; // Skip redundant chat logs
                             else argStr = JSON.stringify(tool.arguments);
                         }
                         if (argStr && argStr.length > 5000) argStr = argStr.substring(0, 5000) + '...';
                         events.push(`🔧 ${tool.name} ${argStr}`);
                     }
                     
-                    // 3. Extract Text Content (if it's not empty/generic)
-                    /* 
-                       Logic Update: 
-                       User explicitly requested to HIDE text that duplicates chat history.
-                       Since OpenClaw sends the 'text' block to the user as a chat message,
-                       showing it here IS duplicating the chat history.
-                       
-                       We ONLY want to show internal activities (Thinking, Tools).
-                       We do NOT want to show the final "Output" text, because the user
-                       already sees that in their chat app.
-                       
-                       Exception: If there are NO tools and NO thinking, and we hide text,
-                       the dashboard will show nothing for that turn. 
-                       But maybe that's what the user wants? "Live Activity" = "Background Work".
-                       Chat is "Foreground".
-                       
-                       Let's completely comment out the Text Extraction for now to strictly follow orders.
-                    */
-                    /*
-                    const textPart = content.find(c => c.type === 'text');
-                    if (textPart && textPart.text && textPart.text.trim().length > 0 && textPart.text !== "NO_REPLY") {
-                        let t = textPart.text.trim();
-                        if (t.length > 5000) t = t.substring(0, 5000) + '...';
-                        events.push(`💬 ${t}`);
-                    }
-                    */
-
                     if (events.length > 0) {
                         return { id: msgId, events: events };
                     }
+                }
+                
+                // 2. Capture Tool Results (Role: toolResult)
+                if (event.type === 'message' && event.message && event.message.role === 'toolResult') {
+                     const toolName = event.message.toolName;
+                     const toolContent = event.message.content;
+                     let resultText = '';
+                     
+                     if (Array.isArray(toolContent)) {
+                         resultText = toolContent.map(c => c.text || '').join(' ');
+                     } else if (typeof toolContent === 'string') {
+                         resultText = toolContent;
+                     }
+                     
+                     // Filter out redundant tool results (e.g. from message tool which just returns "sent")
+                     if (toolName === 'message' || toolName === 'sessions_send') continue;
+
+                     if (resultText && resultText.length > 0) {
+                         if (resultText.length > 2000) resultText = resultText.substring(0, 2000) + '...';
+                         return { id: event.id, events: [`🔧 Result: ${resultText}`] };
+                     }
                 }
             } catch(e) {}
         }
@@ -177,8 +175,33 @@ function getActiveContext() {
     return null;
 }
 
-function logActivity(task) {
+function logActivity(task, id = null) {
     if (!task || task === 'System Idle') return;
+
+    // --- ID-BASED IN-MEMORY DEDUPLICATION ---
+    // If an ID is provided (from Agent Context), use it to strictly prevent duplicates
+    // This handles the case where the service restarts, reads the same last_id from disk,
+    // but might re-process if logic is slightly off.
+    // Also handles the "rapid polling" issue.
+    if (id) {
+         if (!global.processedEventIds) global.processedEventIds = new Set();
+         const key = `${id}:${task.substring(0, 50)}`; // Use ID + partial content as key
+         if (global.processedEventIds.has(key)) return;
+         
+         global.processedEventIds.add(key);
+         // Pruning
+         if (global.processedEventIds.size > 100) {
+             const arr = Array.from(global.processedEventIds);
+             global.processedEventIds = new Set(arr.slice(-50));
+         }
+    }
+    
+    // For non-ID tasks (CPU, Scripts), use strict text+time
+    if (!id) {
+        if (global.lastLoggedTask === task && Date.now() - global.lastLoggedTime < 60000) return;
+        global.lastLoggedTask = task;
+        global.lastLoggedTime = Date.now();
+    }
 
     const now = new Date();
     const ts = now.toISOString();
@@ -253,18 +276,12 @@ function getVersions() {
         const cmd = `${getOpenClawCommand()} --version`;
         core = execSync(cmd).toString().trim();
     } catch(e) {
-        const paths = [
-             path.join(HOME_DIR, '.nvm/versions/node/v22.22.0/lib/node_modules/openclaw/package.json'),
-             '/usr/local/lib/node_modules/openclaw/package.json'
-        ];
-        for (const p of paths) {
-             try {
-                if (fs.existsSync(p)) {
-                    const corePkg = JSON.parse(fs.readFileSync(p, 'utf8'));
-                    core = `v${corePkg.version}`;
-                    break;
-                }
-             } catch(err) {}
+        // Fallback checks
+        try {
+            const pkg = require('/root/.nvm/versions/node/v22.22.0/lib/node_modules/openclaw/package.json');
+            core = `v${pkg.version}`;
+        } catch(e2) {
+            core = 'v2.6.4+ (Unverified)';
         }
     }
     cachedVersions = { dashboard, core };
@@ -320,27 +337,60 @@ function checkSystemStatus(callback) {
                 let status = 'idle';
                 let taskText = 'System Idle';
                 
+                // --- PARALLEL PROCESSING LOGIC ---
+                // We want to detect Background Scripts & CPU even if Agent is busy.
+
+                // 1. Agent Activity (Highest Priority for UI Display)
                 if (ctx) {
                     status = 'busy';
-                    
-                    // ID-based deduplication (Robust)
                     const currentId = String(ctx.id).trim();
                     const lastId = String(lastProcessedId).trim();
 
                     if (currentId !== lastId) {
-                        ctx.events.forEach(evt => logActivity(evt));
+                        // Check if we've already logged this EXACT id+event combination in this process lifetime
+                        // This prevents re-logging on service restart if file was not updated
+                        ctx.events.forEach(evt => logActivity(evt, currentId));
                         lastProcessedId = currentId;
                         try { fs.writeFileSync(ID_FILE, currentId, 'utf8'); } catch(e){ console.error('ID Save Failed:', e); }
                     }
-                    taskText = ctx.events[ctx.events.length - 1];
-                } else if (activities.length > 0) {
+                    // This is what the Dashboard HEADER shows
+                    if (ctx.events && ctx.events.length > 0) {
+                        taskText = ctx.events[ctx.events.length - 1];
+                    }
+                }
+
+                // 2. Background Scripts (Medium Priority)
+                // Always log them if found, even if agent is busy
+                if (activities.length > 0) {
                     status = 'busy';
-                    taskText = activities.join(', ');
-                    logActivity(taskText);
-                } else if (totalCpu > 70.0) { 
+                    const activityText = activities.join(', ');
+                    
+                    // If UI header is still Idle, show this instead
+                    if (taskText === 'System Idle') taskText = activityText;
+                    
+                    // Deduplicate persistent logs (in-memory check)
+                    // If activityText changed from last time, log it
+                    if (global.lastLoggedActivity !== activityText) {
+                         logActivity(activityText);
+                         global.lastLoggedActivity = activityText;
+                    }
+                } else {
+                    global.lastLoggedActivity = null; // Reset
+                }
+
+                // 3. High CPU (Low Priority)
+                if (totalCpu > 70.0) { 
                     status = 'busy';
-                    taskText = `⚡ High CPU: ${topProc || 'Unknown'}`;
-                    logActivity(taskText);
+                    const cpuText = `⚡ High CPU: ${topProc || 'Unknown'}`;
+                    
+                    if (taskText === 'System Idle') taskText = cpuText;
+                    
+                    if (global.lastLoggedCpu !== cpuText) {
+                        logActivity(cpuText);
+                        global.lastLoggedCpu = cpuText;
+                    }
+                } else {
+                    global.lastLoggedCpu = null;
                 }
 
                 const versions = getVersions();
@@ -492,7 +542,7 @@ app.get('/api/config', (req, res) => {
 
 setInterval(() => {
     wss.clients.forEach(c => c.send(JSON.stringify({type:'heartbeat', ts:Date.now()})));
-}, 2000);
+}, 1000);
 
 async function main() {
     server.listen(PORT, '::', async () => {
