@@ -1,33 +1,18 @@
-# ClawBridge Agent Installation Protocol
+# Agent Installation Protocol
 
-Use this guide when asking OpenClaw (or another agent) to install ClawBridge for you.
+**Note to Agent:** To install ClawBridge for the user, do not manually clone or configure. Use the official automated installer which handles dependencies, directory structure, and networking (VPN/Tunnel) automatically.
 
-## Instructions for Agents
+## 1. Execute Installer
+Run this command in the user's terminal:
 
-If you are an agent reading this, execute the following steps to install ClawBridge Dashboard for your user.
-
-### 1. Download & Install
-Use the one-liner for rapid deployment:
 ```bash
-git clone https://github.com/dreamwing/clawbridge skills/clawbridge
-cd skills/clawbridge
-npm install --production
-./install.sh --quick
+curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge/master/setup.sh | bash
 ```
 
-### 2. Retrieve Connection Info
-After installation, read the generated Quick Tunnel URL:
-```bash
-cd skills/clawbridge
-cat .quick_tunnel_url
-# Also grep the ACCESS_KEY from .env if needed
-grep ACCESS_KEY .env
-```
+## 2. Verify & Report
+The script will output the connection URL at the end (either a local VPN link or a public Magic Link).
+**Copy that URL and the Access Key exactly as shown and present it to the user.**
 
-### 3. Report to User
-Format the output nicely:
-> "✅ **ClawBridge Installed!**
-> 
-> 📱 **Dashboard URL:** `https://<quick-url>/?key=<ACCESS_KEY>`
-> 
-> (This is a temporary link. Ask me to 'make it permanent' later if you like it.)"
+*Example Output to look for:*
+> 📱 Local Access: http://100.64.0.1:3000/?key=...
+> 🚀 ClawBridge Dashboard Live: https://....trycloudflare.com/?key=...
