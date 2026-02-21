@@ -1,17 +1,20 @@
 <div align="center">
-  <img src="public/app-icon.png" width="100" alt="ClawBridge Logo" />
+  <img src="public/app-icon.png" width="120" alt="ClawBridge Logo" />
   <h1>ClawBridge Dashboard</h1>
   <p><strong>OpenClaw Agent 的移动端控制台。</strong></p>
 
   <a href="https://clawbridge.app">
-    <img src="https://img.shields.io/badge/官网-clawbridge.app-blue?style=for-the-badge" alt="Website" />
+    <img src="https://img.shields.io/badge/官网-clawbridge.app-3b82f6?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Website" />
   </a>
   <a href="https://github.com/openclaw/openclaw">
-    <img src="https://img.shields.io/badge/OpenClaw-原生兼容-success?style=for-the-badge" alt="OpenClaw" />
+    <img src="https://img.shields.io/badge/OpenClaw-原生兼容-22c55e?style=for-the-badge&logo=robot-framework&logoColor=white" alt="OpenClaw" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/协议-MIT-fab005?style=for-the-badge" alt="License" />
   </a>
   
   <br/><br/>
-  [ <a href="README.md">English</a> | <a href="README_CN.md">简体中文</a> ]
+  [ <a href="README.md">English</a> | <strong>简体中文</strong> ]
 </div>
 
 ---
