@@ -41,8 +41,7 @@ fi
 APP_DIR=$(pwd)
 echo -e "${GREEN}📂 Installing in: $APP_DIR${NC}"
 
-# Stop existing instances to allow port reuse
-pkill -f "node index.js" || true
+# Stop existing service if it exists (Safe stop)
 systemctl --user stop clawbridge >/dev/null 2>&1 || true
 
 # 2. Install Dependencies
