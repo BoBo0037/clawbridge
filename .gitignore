@@ -3,6 +3,7 @@ data/logs/
 data/token_stats/
 data/last_id.txt
 dashboard.log
+test_disk.js
 .env
 node_modules/
 cloudflared

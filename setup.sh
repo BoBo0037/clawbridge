@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # ClawBridge One-Liner Installer
-# Usage: curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge-openclaw-mobile-dashboard/master/setup.sh | bash
+# Usage: curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge/master/setup.sh | bash
 
 set -e
 
 echo "🌊 ClawBridge Quick Installer"
 echo "------------------------------"
 
-TARGET_DIR="skills/clawbridge-dashboard"
+TARGET_DIR="skills/clawbridge"
 
 # 1. Check Directory
 if [ -d "$TARGET_DIR" ]; then
@@ -16,7 +16,7 @@ if [ -d "$TARGET_DIR" ]; then
 else
     echo "⬇️  Cloning repository..."
     mkdir -p skills
-    git clone https://github.com/dreamwing/clawbridge-openclaw-mobile-dashboard.git "$TARGET_DIR"
+    git clone https://github.com/dreamwing/clawbridge.git "$TARGET_DIR"
 fi
 
 # 2. Install Deps

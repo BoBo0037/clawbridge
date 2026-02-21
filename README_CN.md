@@ -34,7 +34,7 @@
 在您的 OpenClaw 服务器（Ubuntu/Debian）上运行这行命令：
 
 ```bash
-curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge-openclaw-mobile-dashboard/master/setup.sh | bash
+curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge/master/setup.sh | bash
 ```
 
 脚本会自动检测环境、生成安全密钥、并直接给出一个可访问的 URL。
@@ -60,7 +60,7 @@ curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge-openclaw-mobile-
 1.  在 Cloudflare Zero Trust 后台创建一个 Tunnel 并获取 Token。
 2.  使用 Token 运行安装脚本：
     ```bash
-    cd skills/clawbridge-dashboard
+    cd skills/clawbridge
     ./install.sh --token=<YOUR_TOKEN>
     ```
     *   或者强制开启临时公网隧道：`./install.sh --force-cf`

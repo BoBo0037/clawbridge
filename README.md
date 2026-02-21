@@ -1,3 +1,10 @@
+# ClawBridge Dashboard (OpenClaw Skill)
+
+![ClawBridge](https://img.shields.io/badge/OpenClaw-Compatible-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+
+**Mobile-First Monitoring for Autonomous Agents.**
+ClawBridge turns your OpenClaw agent into a pocket-sized companion. View real-time thoughts, track token costs, and manage missions from anywhere.
+
 <div align="center">
   <img src="public/app-icon.png" width="100" alt="ClawBridge Logo" />
   <h1>ClawBridge Dashboard</h1>
@@ -31,47 +38,44 @@
 
 ## 🚀 Installation
 
-Run this one-liner on your OpenClaw server (Ubuntu/Debian):
+### Option A: The "Agent Handover" (Recommended)
+Just ask your OpenClaw agent:
+> "Install ClawBridge for me."
 
+Your agent will download the code. Then, **you** finish the security setup in your terminal:
 ```bash
-curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge-openclaw-mobile-dashboard/master/setup.sh | bash
+cd skills/clawbridge
+./install.sh
 ```
 
-That's it. The script will:
-1.  Detect your environment (VPN or Public).
-2.  Generate a secure Access Key.
-3.  Give you a ready-to-use URL.
+### Option B: Manual One-Liner
+Run this on your OpenClaw server (Ubuntu/Debian):
+```bash
+git clone https://github.com/dreamwing/clawbridge skills/clawbridge && \
+cd skills/clawbridge && \
+npm install --production && \
+./install.sh
+```
 
-## 📱 Usage
+## 🔐 Configuration (Zero-Config)
+We believe in "Ghost Mode" security.
+*   **No Domain Input**: The dashboard never asks for or stores your domain name.
+*   **Token Only**: You only provide the Cloudflare Tunnel Token during install.
+*   **Access Key**: A random secret key is generated for you.
 
-### 1. Zero-Config Access (Default)
-If you just want to try it out, the installer provides a **Quick Tunnel** URL:
-`https://<random-name>.trycloudflare.com/?key=<YOUR_KEY>`
+**To access remotely:**
+1.  Map a domain (e.g. `dash.yoursite.com`) to your tunnel in Cloudflare Zero Trust.
+2.  Visit `https://dash.yoursite.com/?key=<YOUR_SECRET_KEY>`.
 
-*   **Pros**: Instant access from anywhere.
-*   **Cons**: URL changes if you restart the service.
-
-### 2. VPN Direct Access (Privacy First)
-If **Tailscale** or **WireGuard** is detected, the installer skips the public tunnel and gives you a private link:
-`http://<VPN_IP>:3000/?key=<YOUR_KEY>`
-
-*   **Pros**: Fastest speed, maximum privacy.
-*   **Cons**: Your phone must be connected to the VPN.
-
-### 3. Permanent Public Domain (Advanced)
-Want a fixed URL like `dash.yoursite.com`?
-1.  Obtain a **Cloudflare Tunnel Token** from the Zero Trust Dashboard.
-2.  Run the installer with the token:
-    ```bash
-    cd skills/clawbridge-dashboard
-    ./install.sh --token=<YOUR_TOKEN>
-    ```
-    *   Or force a new Quick Tunnel: `./install.sh --force-cf`
+## 📱 Mobile App (PWA)
+1.  Open the dashboard in Safari (iOS) or Chrome (Android).
+2.  Tap "Share" -> "Add to Home Screen".
+3.  Launch it like a native app (full screen, no browser bar).
 
 ## 🛠️ Tech Stack
 *   **Backend**: Node.js (Express, WebSocket) - Lightweight sidecar process.
 *   **Frontend**: Vanilla JS - Zero build step, instant load.
-*   **Security**: Token-based auth, optional Cloudflare Tunnel.
+*   **Tunnel**: Cloudflared
 
 ---
-*MIT License. Built for the OpenClaw Community.*
+*Part of the DreamWing OpenClaw Ecosystem.*
