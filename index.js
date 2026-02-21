@@ -523,7 +523,12 @@ app.get('/api/memory', (req, res) => {
     if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) return res.status(400).json({error: 'Invalid date'});
 
     const memPath = path.join(WORKSPACE_DIR, 'memory', `${date}.md`);
-    if (!fs.existsSync(memPath)) return res.json({ date, content: '*No memory log found.*' });
+    if (!fs.existsSync(memPath)) {
+        return res.json({ 
+            date, 
+            content: '### 👋 No memories yet today.\n\nChat with your agent or run tasks to start building your timeline.' 
+        });
+    }
     
     try {
         const content = fs.readFileSync(memPath, 'utf8');
@@ -550,6 +555,27 @@ async function main() {
 
     server.listen(PORT, '::', async () => {
         console.log(`[Dashboard] Local: http://[::]:${PORT}`);
+        
+        // --- COLD START: Welcome Log ---
+        // Ensure the log file has at least one entry so the UI isn't empty
+        const now = new Date();
+        const ts = now.toISOString();
+        const monthDir = path.join(LOG_DIR, ts.substring(0, 7)); 
+        const logFile = path.join(monthDir, `${ts.substring(8, 10)}.jsonl`); 
+        
+        try {
+            if (!fs.existsSync(monthDir)) fs.mkdirSync(monthDir, { recursive: true });
+            
+            // Check if file is empty or new
+            const isNew = !fs.existsSync(logFile) || fs.statSync(logFile).size === 0;
+            
+            if (isNew) {
+                const entry = { ts, task: "🚀 ClawBridge Dashboard Online" };
+                fs.appendFileSync(logFile, JSON.stringify(entry) + '\n');
+            }
+        } catch(e) {}
+        // -------------------------------
+
         if (process.env.ENABLE_EMBEDDED_TUNNEL === 'true') {
             try {
                 await tunnel.downloadBinary();
