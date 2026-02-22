@@ -279,25 +279,30 @@
                     <div style="font-weight:600; color:var(--text); margin-bottom:5px;">Where to find your Token?</div>
                     <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">
                         1. Go to <a href="https://one.dash.cloudflare.com/" target="_blank" style="color:var(--accent)">Cloudflare Zero Trust</a> > Access > Tunnels.<br>
-                        2. Create a tunnel, choose "Docker", and copy the token from the install command (the string after <code style="background:rgba(255,255,255,0.1); padding:1px 3px; border-radius:3px;">--token</code>).
+                        2. Create a tunnel, choose "Docker" (easiest to copy) or your OS, and grab the token string (starts with <code style="background:rgba(255,255,255,0.1); padding:1px 3px; border-radius:3px;">ey...</code>).
                     </div>
                 </div>
 
                 <div style="margin-bottom:15px;">
                     <div style="font-weight:600; color:var(--text); margin-bottom:5px;">Option 1: Ask your Agent (Chat)</div>
                     <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">Send this message to OpenClaw:</div>
-                    <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; font-family:monospace; font-size:11px; border:1px solid var(--border); user-select:all;">
-                        Run this command to fix my dashboard URL:<br>
-                        <span style="color:var(--accent)">cd skills/clawbridge && ./install.sh --token=YOUR_TOKEN</span>
+                    <div class="copy-box" onclick="copyText(this, 'Run this command to fix my dashboard URL:\ncd skills/clawbridge && ./install.sh --token=YOUR_TOKEN')">
+                        <div style="flex:1; font-family:monospace; font-size:11px;">
+                            Run this command to fix my dashboard URL:<br>
+                            <span style="color:var(--accent)">cd skills/clawbridge && ./install.sh --token=YOUR_TOKEN</span>
+                        </div>
+                        <span class="copy-icon">📋</span>
                     </div>
                 </div>
 
                 <div>
                     <div style="font-weight:600; color:var(--text); margin-bottom:5px;">Option 2: Terminal Command</div>
-                    <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; font-family:monospace; font-size:11px; word-break:break-all; border:1px solid var(--border); cursor:pointer;" onclick="navigator.clipboard.writeText(this.innerText); alert('Copied!')">
-                        cd ~/skills/clawbridge && ./install.sh --token=<span style="color:var(--accent)">YOUR_TOKEN</span>
+                    <div class="copy-box" onclick="copyText(this, 'cd ~/skills/clawbridge && ./install.sh --token=YOUR_TOKEN')">
+                        <div style="flex:1; font-family:monospace; font-size:11px; word-break:break-all;">
+                            cd ~/skills/clawbridge && ./install.sh --token=<span style="color:var(--accent)">YOUR_TOKEN</span>
+                        </div>
+                        <span class="copy-icon">📋</span>
                     </div>
-                    <div style="font-size:10px; margin-top:4px; text-align:right;">(Click to copy)</div>
                 </div>
             </div>
         </div>
