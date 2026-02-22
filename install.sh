@@ -114,8 +114,10 @@ else
         BACKUP_FILE="$BACKUP_DIR/clawbridge_v${CURRENT_VER}_${TS}.tar.gz"
         
         echo "📦 Backing up current version to $BACKUP_FILE..."
-        # Ignore node_modules in backup to save space/time
-        tar --exclude='node_modules' -czf "$BACKUP_FILE" -C "skills" "clawbridge"
+        # Ignore node_modules AND the backup folder itself
+        PARENT=$(dirname "$TARGET_DIR")
+        NAME=$(basename "$TARGET_DIR")
+        tar --exclude='node_modules' --exclude='_backups' -czf "$BACKUP_FILE" -C "$PARENT" "$NAME"
         
         BACKUP_MSG="♻️  Previous version backed up to: $BACKUP_FILE"
     fi
