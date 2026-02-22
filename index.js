@@ -186,14 +186,14 @@ function logActivity(task, id = null) {
     // Also handles the "rapid polling" issue.
     if (id) {
          if (!global.processedEventIds) global.processedEventIds = new Set();
-         const key = `${id}:${task.substring(0, 50)}`; // Use ID + partial content as key
+         const key = `${id}:${task}`; // Use ID + FULL content as key to prevent partial match collisions
          if (global.processedEventIds.has(key)) return;
          
          global.processedEventIds.add(key);
          // Pruning
-         if (global.processedEventIds.size > 100) {
+         if (global.processedEventIds.size > 200) { // Increase buffer size
              const arr = Array.from(global.processedEventIds);
-             global.processedEventIds = new Set(arr.slice(-50));
+             global.processedEventIds = new Set(arr.slice(-100));
          }
     }
     
@@ -542,24 +542,35 @@ app.post('/api/run/:id', (req, res) => {
     res.json({status:'triggered'});
 });
 
-const https = require('https');
+// const https = require('https');
 
 app.get('/api/check_update', (req, res) => {
-    const url = 'https://clawbridge.app/api/version';
-    
-    https.get(url, { timeout: 3000 }, (apiRes) => {
-        let data = '';
-        apiRes.on('data', chunk => data += chunk);
-        apiRes.on('end', () => {
-            try {
-                res.json(JSON.parse(data));
-            } catch (e) {
-                res.json({ error: 'Invalid JSON', version: '0.0.0' });
+    // Helper to fetch with redirect follow
+    const fetchUrl = (url, attempts = 0) => {
+        if (attempts > 3) return res.json({ error: 'Too many redirects', version: '0.0.0' });
+        
+        https.get(url, { timeout: 3000 }, (apiRes) => {
+            // Handle Redirects (301, 302, 307, 308)
+            if (apiRes.statusCode >= 300 && apiRes.statusCode < 400 && apiRes.headers.location) {
+                return fetchUrl(apiRes.headers.location, attempts + 1);
             }
+            
+            let data = '';
+            apiRes.on('data', chunk => data += chunk);
+            apiRes.on('end', () => {
+                try {
+                    res.json(JSON.parse(data));
+                } catch (e) {
+                    res.json({ error: 'Invalid JSON', version: '0.0.0' });
+                }
+            });
+        }).on('error', (e) => {
+            res.json({ error: 'Update check failed', version: '0.0.0' });
         });
-    }).on('error', (e) => {
-        res.json({ error: 'Update check failed', version: '0.0.0' });
-    });
+    };
+
+    // Start with root domain (canonical preference)
+    fetchUrl('https://clawbridge.app/api/version');
 });
 
 app.get('/api/config', (req, res) => {
