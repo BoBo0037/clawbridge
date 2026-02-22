@@ -12,7 +12,7 @@
   </install>
   <instructions>
     To update ClawBridge to the latest version, simply re-run the installation command:
-    `curl -sL https://clawbridge.app/install.sh | bash`
+    `curl -sL "https://clawbridge.app/install.sh?ref=update" | bash`
     The script will automatically detect the existing installation and pull the latest changes.
   </instructions>
 </skill>
