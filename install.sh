@@ -9,6 +9,7 @@ echo "🌊 ClawBridge Installer"
 echo "-----------------------"
 
 TARGET_DIR="skills/clawbridge"
+NEEDS_BUILD=true
 
 # 1. Check Directory & Update
 if [ -d "$TARGET_DIR" ]; then
@@ -25,38 +26,47 @@ if [ -d "$TARGET_DIR" ]; then
     LATEST_TAG=$(git tag -l "v*" | sort -V | tail -n1)
     
     if [ ! -z "$LATEST_TAG" ]; then
-        echo "🔖 Switching to release $LATEST_TAG..."
-        # Checkout tag (detached head)
-        git checkout "tags/$LATEST_TAG"
+        # Check current tag
+        CURRENT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "none")
+        
+        if [ "$CURRENT_TAG" == "$LATEST_TAG" ]; then
+            echo "✅ Already on latest version ($LATEST_TAG). Skipping update."
+            NEEDS_BUILD=false
+        else
+            echo "🔖 Found new version: $LATEST_TAG (Current: $CURRENT_TAG)"
+            echo "🔄 Switching to release $LATEST_TAG..."
+            git checkout "tags/$LATEST_TAG"
+        fi
     else
         echo "⚠️  No release tags found. Using master branch..."
         git checkout master
         git pull origin master
     fi
-    
-    cd - > /dev/null
 else
     echo "⬇️  Cloning repository..."
     mkdir -p skills
     git clone https://github.com/dreamwing/clawbridge.git "$TARGET_DIR"
+    cd "$TARGET_DIR"
     
     # Post-clone: Checkout tag if available
-    cd "$TARGET_DIR"
     LATEST_TAG=$(git tag -l "v*" | sort -V | tail -n1)
     if [ ! -z "$LATEST_TAG" ]; then
         echo "🔖 Checkout release $LATEST_TAG..."
         git checkout "tags/$LATEST_TAG"
     fi
-    cd - > /dev/null
 fi
 
-# 2. Install Deps
-echo "📦 Installing dependencies..."
-cd "$TARGET_DIR"
-if [ -f "package-lock.json" ]; then
-    npm ci --production --silent
+# 2. Install Deps (Conditional)
+if [ "$NEEDS_BUILD" = true ]; then
+    echo "📦 Installing dependencies..."
+    # Note: We are already inside TARGET_DIR
+    if [ -f "package-lock.json" ]; then
+        npm ci --production --silent
+    else
+        npm install --production --silent
+    fi
 else
-    npm install --production --silent
+    echo "⏭️  Skipping dependency install (Version match)."
 fi
 
 # 3. Run Setup
@@ -64,4 +74,3 @@ echo "🚀 Configuring..."
 chmod +x setup.sh
 # Force quick mode for zero-friction
 ./setup.sh --quick
-
