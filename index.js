@@ -485,6 +485,8 @@ function getActiveContext() {
         if (Date.now() - maxTime > 15000) return null;
 
         const logFile = latestSession.sessionFile;
+        if (!logFile) return null;
+        
         // Security: validate logFile path is within expected directories
         const resolvedLogFile = path.resolve(logFile);
         const allowedPrefixes = [STATE_DIR, HOME_DIR, WORKSPACE_DIR];
