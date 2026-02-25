@@ -11,7 +11,9 @@ router.get('/api/tokens', (req, res) => {
     try {
         const data = fs.readFileSync(TOKEN_FILE, 'utf8');
         res.json(JSON.parse(data));
-    } catch (e) { res.status(500).json({ error: 'Read failed' }); }
+    } catch (e) {
+        res.status(500).json({ error: 'Read failed' });
+    }
 });
 
 router.post('/api/tokens/refresh', (req, res) => {

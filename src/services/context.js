@@ -13,12 +13,15 @@ function getActiveContext() {
             sessionsPath,
             path.join(HOME_DIR, '.openclaw/agents/main/sessions/sessions.json'),
             path.join(WORKSPACE_DIR, '.openclaw/sessions/sessions.json'),
-            path.join(HOME_DIR, '.clawdbot/agents/main/sessions/sessions.json')
+            path.join(HOME_DIR, '.clawdbot/agents/main/sessions/sessions.json'),
         ];
 
         let targetPath = null;
         for (const p of altPaths) {
-            if (fs.existsSync(p)) { targetPath = p; break; }
+            if (fs.existsSync(p)) {
+                targetPath = p;
+                break;
+            }
         }
 
         if (!targetPath) return null;
@@ -75,20 +78,28 @@ function getActiveContext() {
                 // --- Freshness Filter ---
                 if (event.time) {
                     const evtTime = new Date(event.time).getTime();
-                    if (!isNaN(evtTime) && (now - evtTime > FRESHNESS_WINDOW_MS)) {
+                    if (!isNaN(evtTime) && now - evtTime > FRESHNESS_WINDOW_MS) {
                         continue;
                     }
                 }
 
                 // 1. Capture Assistant Messages (Thinking + Tool Call Requests)
-                if (event.type === 'message' && event.message && event.message.role === 'assistant' && event.message.content) {
+                if (
+                    event.type === 'message' &&
+                    event.message &&
+                    event.message.role === 'assistant' &&
+                    event.message.content
+                ) {
                     const msgId = event.id;
                     const content = event.message.content;
                     const events = [];
 
                     const thinking = content.find(c => c.type === 'thinking');
                     if (thinking && thinking.thinking) {
-                        let text = thinking.thinking.replace(/^[#\*\- ]+/, '').replace(/\n/g, ' ').trim();
+                        let text = thinking.thinking
+                            .replace(/^[#*\- ]+/, '')
+                            .replace(/\n/g, ' ')
+                            .trim();
                         if (text.length > 5000) text = text.substring(0, 5000) + '...';
                         events.push(`🧠 ${text}`);
                     }
@@ -131,9 +142,13 @@ function getActiveContext() {
                         return { id: event.id, events: [`🔧 Result: ${resultText}`] };
                     }
                 }
-            } catch (e) { /* expected: not all log lines are valid JSON */ }
+            } catch (e) {
+                /* expected: not all log lines are valid JSON */
+            }
         }
-    } catch (e) { console.warn('[Context] Failed to read active context:', e.message); }
+    } catch (e) {
+        console.warn('[Context] Failed to read active context:', e.message);
+    }
     return null;
 }
 

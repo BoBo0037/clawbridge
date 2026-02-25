@@ -19,7 +19,9 @@ try {
     if (fs.existsSync(ID_FILE)) {
         lastProcessedId = fs.readFileSync(ID_FILE, 'utf8').trim();
     }
-} catch (e) { console.debug('[Init] No previous event ID file:', e.message); }
+} catch (e) {
+    console.debug('[Init] No previous event ID file:', e.message);
+}
 
 // --- Version Cache ---
 let cachedVersions = null;
@@ -27,7 +29,7 @@ let cachedVersionsTs = 0;
 const VERSION_CACHE_TTL = 5 * 60 * 1000;
 
 function getVersions() {
-    if (cachedVersions && (Date.now() - cachedVersionsTs < VERSION_CACHE_TTL)) {
+    if (cachedVersions && Date.now() - cachedVersionsTs < VERSION_CACHE_TTL) {
         return cachedVersions;
     }
 
@@ -37,7 +39,9 @@ function getVersions() {
     try {
         const pkg = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'package.json'), 'utf8'));
         dashboard = pkg.version;
-    } catch (e) { console.warn('[Versions] Failed to read dashboard package.json:', e.message); }
+    } catch (e) {
+        console.warn('[Versions] Failed to read dashboard package.json:', e.message);
+    }
 
     try {
         const cmd = `${getOpenClawCommand()} --version`;
@@ -116,7 +120,11 @@ function checkSystemStatus(callback) {
                     if (currentId !== lastId) {
                         ctx.events.forEach(evt => logActivity(evt, currentId));
                         lastProcessedId = currentId;
-                        try { fs.writeFileSync(ID_FILE, currentId, 'utf8'); } catch (e) { console.error('ID Save Failed:', e); }
+                        try {
+                            fs.writeFileSync(ID_FILE, currentId, 'utf8');
+                        } catch (e) {
+                            console.error('ID Save Failed:', e);
+                        }
                     }
                     if (ctx.events && ctx.events.length > 0) {
                         taskText = ctx.events[ctx.events.length - 1];
@@ -161,7 +169,7 @@ function checkSystemStatus(callback) {
                     lastHeartbeat: new Date().toISOString(),
                     versions: versions,
                     gatewayPid: gatewayPid,
-                    scripts: runningScripts
+                    scripts: runningScripts,
                 });
             }
         }

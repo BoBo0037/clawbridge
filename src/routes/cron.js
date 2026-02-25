@@ -14,7 +14,7 @@ router.get('/api/cron', (req, res) => {
         const v2Path = path.join(STATE_DIR, 'cron/jobs.json');
         const legacyPath = path.join(HOME_DIR, '.clawdbot/cron/jobs.json');
 
-        let target = fs.existsSync(v2Path) ? v2Path : (fs.existsSync(legacyPath) ? legacyPath : null);
+        let target = fs.existsSync(v2Path) ? v2Path : fs.existsSync(legacyPath) ? legacyPath : null;
 
         if (target) {
             const fileData = fs.readFileSync(target, 'utf8');
@@ -32,7 +32,9 @@ router.get('/api/cron', (req, res) => {
             const data = JSON.parse(stdout);
             if (data.jobs) return res.json(data.jobs);
             return res.json([]);
-        } catch (e) { res.json([]); }
+        } catch (e) {
+            res.json([]);
+        }
     });
 });
 

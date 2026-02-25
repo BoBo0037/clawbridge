@@ -29,12 +29,21 @@ router.post('/api/kill', (req, res) => {
             console.log(`[Kill] Terminating processes by ${req.ip} at ${new Date().toISOString()}:\n${processDetails}`);
 
             pidList.forEach(pid => {
-                try { process.kill(parseInt(pid), 'SIGTERM'); } catch (e) { /* may already be dead */ }
+                try {
+                    process.kill(parseInt(pid), 'SIGTERM');
+                } catch (e) {
+                    /* may already be dead */
+                }
             });
 
             setTimeout(() => {
                 pidList.forEach(pid => {
-                    try { process.kill(parseInt(pid), 0); process.kill(parseInt(pid), 'SIGKILL'); } catch (e) { /* already dead */ }
+                    try {
+                        process.kill(parseInt(pid), 0);
+                        process.kill(parseInt(pid), 'SIGKILL');
+                    } catch (e) {
+                        /* already dead */
+                    }
                 });
             }, 3000);
 

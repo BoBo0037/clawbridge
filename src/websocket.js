@@ -12,7 +12,7 @@ function setupWebSocket(wss) {
         // Check header key or cookie-based session
         const cookies = {};
         (req.headers.cookie || '').split(';').forEach(c => {
-            const eqIdx = c.indexOf('=');
+            let eqIdx = c.indexOf('=');
             if (eqIdx > 0) cookies[c.slice(0, eqIdx).trim()] = c.slice(eqIdx + 1).trim();
         });
         const hasValidSession = cookies.claw_session && hasSession(cookies.claw_session);
@@ -25,7 +25,8 @@ function setupWebSocket(wss) {
     // Heartbeat
     setInterval(() => {
         wss.clients.forEach(c => {
-            if (c.readyState === 1) { // WebSocket.OPEN
+            if (c.readyState === 1) {
+                // WebSocket.OPEN
                 c.send(JSON.stringify({ type: 'heartbeat', ts: Date.now() }));
             }
         });

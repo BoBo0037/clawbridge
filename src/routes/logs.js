@@ -21,11 +21,17 @@ router.get('/api/logs', (req, res) => {
         const logs = [];
         for (let i = lines.length - 1; i >= 0; i--) {
             if (!lines[i]) continue;
-            try { logs.push(JSON.parse(lines[i])); } catch (e) { /* expected: malformed log line */ }
+            try {
+                logs.push(JSON.parse(lines[i]));
+            } catch (e) {
+                /* expected: malformed log line */
+            }
             if (logs.length >= limit) break;
         }
         res.json(logs);
-    } catch (e) { res.status(500).json({ error: 'Log read failed' }); }
+    } catch (e) {
+        res.status(500).json({ error: 'Log read failed' });
+    }
 });
 
 module.exports = router;

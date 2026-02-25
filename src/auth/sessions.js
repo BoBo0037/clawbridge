@@ -8,9 +8,7 @@ const { SECRET_KEY } = require('../config');
 const activeSessions = new Set();
 
 function generateSessionToken() {
-    return crypto.createHmac('sha256', SECRET_KEY)
-        .update(crypto.randomBytes(32).toString('hex'))
-        .digest('hex');
+    return crypto.createHmac('sha256', SECRET_KEY).update(crypto.randomBytes(32).toString('hex')).digest('hex');
 }
 
 function addSession(token) {

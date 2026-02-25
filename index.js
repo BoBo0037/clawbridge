@@ -27,14 +27,20 @@ const wss = new WebSocketServer({ server });
 setupWebSocket(wss);
 
 // --- Background Tasks ---
-setInterval(() => { checkSystemStatus(() => { }); }, 3000);
+setInterval(() => {
+    checkSystemStatus(() => {});
+}, 3000);
 runAnalyzer();
 setInterval(runAnalyzer, 60 * 60 * 1000);
 
 // --- Startup ---
 async function main() {
     // Cleanup old quick tunnel file
-    try { fs.unlinkSync(path.join(__dirname, '.quick_tunnel_url')); } catch (e) { /* expected: file may not exist */ }
+    try {
+        fs.unlinkSync(path.join(__dirname, '.quick_tunnel_url'));
+    } catch (e) {
+        /* expected: file may not exist */
+    }
 
     server.listen(PORT, '::', async () => {
         console.log(`[Dashboard] Local: http://[::]:${PORT}`);
@@ -51,10 +57,12 @@ async function main() {
             if (!fs.existsSync(monthDir)) fs.mkdirSync(monthDir, { recursive: true });
             const isNew = !fs.existsSync(logFile) || fs.statSync(logFile).size === 0;
             if (isNew) {
-                const entry = { ts, task: "🚀 ClawBridge Dashboard Online" };
+                const entry = { ts, task: '🚀 ClawBridge Dashboard Online' };
                 fs.appendFileSync(logFile, JSON.stringify(entry) + '\n');
             }
-        } catch (e) { console.warn('[Startup] Failed to write cold-start log:', e.message); }
+        } catch (e) {
+            console.warn('[Startup] Failed to write cold-start log:', e.message);
+        }
 
         // Tunnel
         if (process.env.ENABLE_EMBEDDED_TUNNEL === 'true') {
@@ -62,7 +70,9 @@ async function main() {
                 await tunnel.downloadBinary();
                 const url = await tunnel.startTunnel(PORT, TUNNEL_TOKEN);
                 console.log(`\n🚀 CLAWBRIDGE DASHBOARD LIVE:\n👉 ${url}\n`);
-            } catch (e) { console.error('Tunnel Failed:', e); }
+            } catch (e) {
+                console.error('Tunnel Failed:', e);
+            }
         }
     });
 }

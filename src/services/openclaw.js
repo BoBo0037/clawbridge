@@ -26,7 +26,7 @@ function findWorkspace() {
     const candidates = [
         path.join(HOME_DIR, 'clawd'), // Legacy clawdbot/clawd path
         path.join(HOME_DIR, '.openclaw'), // Standard OpenClaw storage
-        process.cwd()
+        process.cwd(),
     ];
 
     for (const p of candidates) {
@@ -44,7 +44,12 @@ function findWorkspace() {
 
 function getOpenClawCommand() {
     if (process.env.OPENCLAW_PATH) return process.env.OPENCLAW_PATH;
-    try { execSync('which openclaw', { stdio: 'pipe' }); return 'openclaw'; } catch (e) { /* expected: openclaw may not be in PATH */ }
+    try {
+        execSync('which openclaw', { stdio: 'pipe' });
+        return 'openclaw';
+    } catch (e) {
+        /* expected: openclaw may not be in PATH */
+    }
     // Dynamic: look for openclaw in same bin dir as current Node.js
     const nodeBinDir = path.dirname(process.execPath);
     const localPath = path.join(nodeBinDir, 'openclaw');

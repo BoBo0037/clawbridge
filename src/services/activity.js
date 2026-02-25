@@ -58,7 +58,9 @@ function checkFileChanges() {
                 if (file.startsWith('.') || file.endsWith('.tmp')) return;
                 scanFile(path.join(d, file));
             });
-        } catch (e) { console.debug('[Watch] Error reading directory:', d, e.message); }
+        } catch (e) {
+            console.debug('[Watch] Error reading directory:', d, e.message);
+        }
     });
 }
 
@@ -85,7 +87,9 @@ function scanFile(filePath) {
                 logActivity(`📝 Updated: ${rel}`);
             }
         }
-    } catch (e) { console.debug('[Watch] Error scanning file:', filePath, e.message); }
+    } catch (e) {
+        console.debug('[Watch] Error scanning file:', filePath, e.message);
+    }
 }
 
 module.exports = { logActivity, checkFileChanges, scanFile };

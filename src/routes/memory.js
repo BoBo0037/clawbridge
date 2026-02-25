@@ -15,20 +15,24 @@ router.get('/api/memory', (req, res) => {
         if (!fs.existsSync(memoryDir)) return res.json([]);
 
         // Cache Check
-        if (memoryCache.data && (Date.now() - memoryCache.ts < CACHE_TTL_MS)) {
+        if (memoryCache.data && Date.now() - memoryCache.ts < CACHE_TTL_MS) {
             return res.json(memoryCache.data);
         }
 
         try {
-            const files = fs.readdirSync(memoryDir)
+            const files = fs
+                .readdirSync(memoryDir)
                 .filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.md$/))
-                .sort().reverse()
+                .sort()
+                .reverse()
                 .slice(0, 30);
 
             const list = files.map(f => f.replace('.md', ''));
             memoryCache = { data: list, ts: Date.now() };
             return res.json(list);
-        } catch (e) { return res.json([]); }
+        } catch (e) {
+            return res.json([]);
+        }
     }
 
     const tz = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
@@ -39,14 +43,17 @@ router.get('/api/memory', (req, res) => {
     if (!fs.existsSync(memPath)) {
         return res.json({
             date,
-            content: '### 👋 No memories yet today.\n\nChat with your agent or run tasks to start building your timeline.'
+            content:
+                '### 👋 No memories yet today.\n\nChat with your agent or run tasks to start building your timeline.',
         });
     }
 
     try {
         const content = fs.readFileSync(memPath, 'utf8');
         res.json({ date, content });
-    } catch (e) { res.status(500).json({ error: 'Failed to read memory' }); }
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to read memory' });
+    }
 });
 
 module.exports = router;
