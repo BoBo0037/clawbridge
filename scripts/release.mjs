@@ -1,0 +1,225 @@
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { Octokit } from '@octokit/rest';
+import semver from 'semver';
+import translate from 'google-translate-api-x';
+
+const githubToken = process.env.GITHUB_TOKEN;
+if (!githubToken) {
+    console.error('GITHUB_TOKEN is required');
+    process.exit(1);
+}
+
+const octokit = new Octokit({ auth: githubToken });
+const repoOwner = 'dreamwing';
+const repoName = 'clawbridge';
+const bumpType = process.argv[2] || 'patch';
+
+async function run() {
+    console.log(`Starting release process (bump: ${bumpType})...`);
+
+    // 1. Bump version
+    const pkgPath = path.resolve('package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    const currentVersion = pkg.version;
+    const newVersion = semver.inc(currentVersion, bumpType);
+    if (!newVersion) {
+        console.error('Invalid version bump');
+        process.exit(1);
+    }
+
+    execSync(`npm version ${bumpType} --no-git-tag-version`);
+    console.log(`Bumped version from ${currentVersion} to ${newVersion}`);
+
+    // 2. Read CHANGELOG.md [Unreleased] section
+    const changelogPath = path.resolve('CHANGELOG.md');
+    let changelog = fs.readFileSync(changelogPath, 'utf8');
+
+    const unreleasedMatch = changelog.match(/## \[Unreleased\]\n\n([\s\S]*?)(?=\n## \[|\n$|$)/);
+    if (!unreleasedMatch || !unreleasedMatch[1].trim()) {
+        console.error('No unreleased changes found in CHANGELOG.md');
+        process.exit(1);
+    }
+
+    const unreleasedContent = unreleasedMatch[1].trim();
+
+    // 3. Find unique issue numbers
+    const issueRegex = /#(\d+)/g;
+    const issueMatches = [...unreleasedContent.matchAll(issueRegex)];
+    const issueNumbers = [...new Set(issueMatches.map(m => parseInt(m[1], 10)))];
+
+    console.log(`Found issues in changelog: ${issueNumbers.join(', ')}`);
+
+    // 4. Fetch issue bodies and look for credits
+    const creditsFound = []; // { user: 'username', issue: 12 }
+
+    for (const issueNum of issueNumbers) {
+        try {
+            const { data: issue } = await octokit.rest.issues.get({
+                owner: repoOwner,
+                repo: repoName,
+                issue_number: issueNum
+            });
+
+            const body = issue.body || '';
+            // Support formats: Suggested by: @username, Credits: @username, Thanks to @username, 感谢 @username
+            const creditRegex = /(?:Suggested by|Credits|Thanks to|感谢)[:\s]*@([A-Za-z0-9_-]+)/i;
+            const match = body.match(creditRegex);
+
+            if (match) {
+                const username = match[1];
+                creditsFound.push({ user: username, issue: issueNum });
+                console.log(`Found credit for @${username} in issue #${issueNum}`);
+            }
+        } catch (e) {
+            console.warn(`Could not fetch issue #${issueNum}:`, e.message);
+        }
+    }
+
+    // 5. Append credits to the changelog lines if they don't already exist
+    let lines = unreleasedContent.split('\n');
+    for (const credit of creditsFound) {
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes(`#${credit.issue}`)) {
+                if (!lines[i].includes(`@${credit.user}`)) {
+                    lines[i] = `${lines[i]} (Thanks @${credit.user} for suggesting #${credit.issue})`;
+                }
+            }
+        }
+    }
+    const processedEnglishContent = lines.join('\n');
+
+    // 6. Translate to Chinese
+    console.log('Translating changelog to Chinese...');
+    let translatedContent = '';
+    try {
+        const res = await translate(processedEnglishContent, { to: 'zh-CN' });
+        translatedContent = res.text || processedEnglishContent;
+
+        // Fix common translation headers
+        translatedContent = translatedContent
+            .replace(/### 修复/ig, '### Fixed')
+            .replace(/### 添加/ig, '### Added')
+            .replace(/### 新增/ig, '### Added')
+            .replace(/### 已添加/ig, '### Added')
+            .replace(/### 已修复/ig, '### Fixed')
+            .replace(/### Added/, '### 新增')
+            .replace(/### Fixed/, '### 修复')
+            .replace(/### Changed/, '### 变更')
+            .replace(/### Removed/, '### 移除');
+    } catch (e) {
+        console.warn('Translation failed, using original English for Chinese changelog:', e.message);
+        translatedContent = processedEnglishContent;
+    }
+
+    // 7. Update CHANGELOG.md
+    const today = new Date().toISOString().split('T')[0];
+    const newReleaseHeader = `## [${newVersion}] - ${today}`;
+
+    const newChangelog = changelog.replace(
+        /## \[Unreleased\]\n\n[\s\S]*?(?=\n## \[|\n$|$)/,
+        `## [Unreleased]\n\n${newReleaseHeader}\n\n${processedEnglishContent}\n`
+    );
+    fs.writeFileSync(changelogPath, newChangelog, 'utf8');
+
+    // 8. Update CHANGELOG_CN.md
+    const changelogCnPath = path.resolve('CHANGELOG_CN.md');
+    let changelogCn = '';
+    if (fs.existsSync(changelogCnPath)) {
+        changelogCn = fs.readFileSync(changelogCnPath, 'utf8');
+        if (changelogCn.includes('## [Unreleased]')) {
+            changelogCn = changelogCn.replace(
+                /## \[Unreleased\]\n\n[\s\S]*?(?=\n## \[|\n$|$)/,
+                `## [Unreleased]\n\n${newReleaseHeader}\n\n${translatedContent}\n`
+            );
+        } else {
+            const headerIndex = changelogCn.indexOf('## [');
+            if (headerIndex !== -1) {
+                changelogCn = changelogCn.substring(0, headerIndex) + `## [Unreleased]\n\n${newReleaseHeader}\n\n${translatedContent}\n\n` + changelogCn.substring(headerIndex);
+            } else {
+                changelogCn = `# 更新日志\n\n## [Unreleased]\n\n${newReleaseHeader}\n\n${translatedContent}\n`;
+            }
+        }
+    } else {
+        // Scaffold initial Chinese Changelog
+        changelogCn = `# 更新日志\n\n本项目的所有显著更改都将记录在此文件中。\n\n## [Unreleased]\n\n${newReleaseHeader}\n\n${translatedContent}\n`;
+    }
+    fs.writeFileSync(changelogCnPath, changelogCn, 'utf8');
+
+    // 9. Update README.md and README_CN.md Credits
+    const newContributors = [...new Set(creditsFound.map(c => c.user))];
+
+    if (newContributors.length > 0) {
+        console.log(`Updating READMEs with new contributors: ${newContributors.join(', ')}`);
+
+        for (const file of ['README.md', 'README_CN.md']) {
+            const readmePath = path.resolve(file);
+            if (fs.existsSync(readmePath)) {
+                let readme = fs.readFileSync(readmePath, 'utf8');
+                let creditsIndex = readme.indexOf('## Credits');
+                if (creditsIndex === -1) creditsIndex = readme.indexOf('## 鸣谢');
+
+                if (creditsIndex !== -1) {
+                    let readmeLines = readme.split('\n');
+                    let creditLineIndex = -1;
+                    for (let i = 0; i < readmeLines.length; i++) {
+                        if (readmeLines[i].startsWith('## Credits') || readmeLines[i].startsWith('## 鸣谢')) {
+                            creditLineIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (creditLineIndex !== -1) {
+                        let insertIndex = creditLineIndex + 1;
+                        while (insertIndex < readmeLines.length && !readmeLines[insertIndex].startsWith('## ') && !readmeLines[insertIndex].startsWith('---')) {
+                            insertIndex++;
+                        }
+
+                        for (const user of newContributors) {
+                            if (!readme.includes(`[@${user}](https://github.com/${user})`)) {
+                                readmeLines.splice(insertIndex - 1, 0, `- [@${user}](https://github.com/${user}) for valuable contributions and suggestions.`);
+                                insertIndex++;
+                            }
+                        }
+                        fs.writeFileSync(readmePath, readmeLines.join('\n'), 'utf8');
+                    }
+                }
+            }
+        }
+    }
+
+    // 10. Commit, Tag, Push
+    execSync('git config user.name "github-actions[bot]"');
+    execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+    try {
+        execSync('git add package.json package-lock.json CHANGELOG.md CHANGELOG_CN.md README.md README_CN.md');
+        execSync(`git commit -m "chore(release): v${newVersion}"`);
+        execSync(`git tag -a v${newVersion} -m "Release v${newVersion}"`);
+        console.log('Pushing to remote...');
+        execSync('git push origin master');
+        execSync(`git push origin v${newVersion}`);
+    } catch (e) {
+        console.error('Git operations failed:', e.message);
+        if (e.stdout) console.log(e.stdout.toString());
+        process.exit(1);
+    }
+
+    // 11. Create Release
+    try {
+        console.log('Creating GitHub Release...');
+        await octokit.rest.repos.createRelease({
+            owner: repoOwner,
+            repo: repoName,
+            tag_name: `v${newVersion}`,
+            name: `v${newVersion}`,
+            body: processedEnglishContent
+        });
+        console.log('Release published successfully!');
+    } catch (e) {
+        console.error('Failed to create GitHub Release:', e.message);
+    }
+}
+
+run();
