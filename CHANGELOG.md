@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESLint + Prettier code style enforcement. (#7)
 - GitHub Actions CI workflow running tests and lint on every push. (#7)
 - Split `public/index.html` into separate `public/css/dashboard.css` and `public/js/dashboard.js` for maintainability.
+- Display dashboard URL as terminal QR code after installation for instant mobile scanning. Uses `qrencode` CLI if available, falls back to `qrcode-terminal` npm package, silently skips if neither is present. (Thanks @斯图超哥 for suggesting #12)
 
 ### Fixed
 - Security: Replaced URL query auth with HttpOnly cookie-based sessions. (Thanks [@yaochao](https://github.com/yaochao) for reporting #1)
