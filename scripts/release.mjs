@@ -36,7 +36,7 @@ async function run() {
     const changelogPath = path.resolve('CHANGELOG.md');
     let changelog = fs.readFileSync(changelogPath, 'utf8');
 
-    const unreleasedMatch = changelog.match(/## \[Unreleased\]\n\n([\s\S]*?)(?=\n## \[|\n$|$)/);
+    const unreleasedMatch = changelog.match(/## \[Unreleased\]\s+([\s\S]*?)(?=\n+## \[|$)/);
     let unreleasedContent = (unreleasedMatch && unreleasedMatch[1].trim()) ? unreleasedMatch[1].trim() : '';
 
     if (!unreleasedContent) {
@@ -50,24 +50,48 @@ async function run() {
         const lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim();
         console.log(`Last tag: ${lastTag}`);
 
-        // Get commits since last tag
-        const logOut = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`, { encoding: 'utf8' });
+        // Get commit info including PR references
+        const logOut = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s|%h"`, { encoding: 'utf8' });
         const commitLines = logOut.split('\n').filter(Boolean);
+
+        const mergeLog = execSync(`git log ${lastTag}..HEAD --merges --pretty=format:"%s"`, { encoding: 'utf8' });
+        const commitPrMap = new Map(); // hash -> prNumber
+
+        for (const line of mergeLog.split('\n').filter(Boolean)) {
+            const m = line.match(/Merge pull request #(\d+) from/);
+            if (m) {
+                const prNum = m[1];
+                // Get all commit hashes in this PR merge
+                const prHashes = execSync(`git log -1 --pretty=format:"%P" $(git log -1 --pretty=format:"%H" --grep="${line}")`, { encoding: 'utf8' })
+                    .split(' ').slice(1); // The second parent is the PR branch head
+                if (prHashes[0]) {
+                    const branchCommits = execSync(`git log ${lastTag}..${prHashes[0]} --pretty=format:"%h"`, { encoding: 'utf8' }).split('\n');
+                    for (const h of branchCommits) commitPrMap.set(h, prNum);
+                }
+            }
+        }
 
         const parsedCommits = { Added: [], Fixed: [], Changed: [], Removed: [] };
 
-        for (const msg of commitLines) {
-            if (unreleasedContent.includes(msg)) continue; // Skip if exact phrase already written by user
+        for (const line of commitLines) {
+            const [msg, hash] = line.split('|');
+            if (unreleasedContent.includes(msg)) continue;
+
+            const prNum = commitPrMap.get(hash);
+            const suffix = prNum ? ` (PR #${prNum})` : '';
+            let entry = '';
 
             // Basic conventional commit parsing
             if (msg.startsWith('feat:') || msg.startsWith('feat(')) {
-                parsedCommits.Added.push(`- ${msg.replace(/^feat(?:\(.*\))?:/, '').trim()}`);
+                entry = `- ${msg.replace(/^feat(?:\(.*\))?:/, '').trim()}${suffix}`;
+                parsedCommits.Added.push(entry);
             } else if (msg.startsWith('fix:') || msg.startsWith('fix(') || msg.startsWith('perf')) {
-                parsedCommits.Fixed.push(`- ${msg.replace(/^(?:fix|perf)(?:\(.*\))?:/, '').trim()}`);
+                entry = `- ${msg.replace(/^(?:fix|perf)(?:\(.*\))?:/, '').trim()}${suffix}`;
+                parsedCommits.Fixed.push(entry);
             } else if (msg.startsWith('refactor') || msg.startsWith('docs') || msg.startsWith('style') || msg.startsWith('chore')) {
-                // Skip chore/merge commits generally, keep others as Changed
                 if (!msg.startsWith('chore') && !msg.startsWith('Merge')) {
-                    parsedCommits.Changed.push(`- ${msg.replace(/^(?:refactor|docs|style)(?:\(.*\))?:/, '').trim()}`);
+                    entry = `- ${msg.replace(/^(?:refactor|docs|style)(?:\(.*\))?:/, '').trim()}${suffix}`;
+                    parsedCommits.Changed.push(entry);
                 }
             }
         }
@@ -175,9 +199,25 @@ async function run() {
                     repo: repoName,
                     pull_number: prNum
                 });
+                const prBody = pr.body || '';
                 if (pr.user && pr.user.login) {
                     addCredit(pr.user.login, prNum);
                     console.log(`Found PR author @${pr.user.login} from PR #${prNum}`);
+                }
+                // Scan PR body for "fixes #NN", "closes #NN", etc.
+                const linkedIssueRegex = /(?:fixes|fixes|closes|refs|感谢)\s+#(\d+)/gi;
+                let issueMatch;
+                while ((issueMatch = linkedIssueRegex.exec(prBody)) !== null) {
+                    const linkedIssueNum = parseInt(issueMatch[1], 10);
+                    try {
+                        const { data: linkedIssue } = await octokit.rest.issues.get({
+                            owner: repoOwner, repo: repoName, issue_number: linkedIssueNum
+                        });
+                        if (linkedIssue.user && linkedIssue.user.login) {
+                            addCredit(linkedIssue.user.login, linkedIssueNum);
+                            console.log(`Found linked issue opener @${linkedIssue.user.login} for #${linkedIssueNum} via PR #${prNum}`);
+                        }
+                    } catch (err) { /* ignore */ }
                 }
             } catch {
                 // Not a PR or fetch failed, skip silently
@@ -228,7 +268,7 @@ async function run() {
     const newReleaseHeader = `## [${newVersion}] - ${today}`;
 
     const newChangelog = changelog.replace(
-        /## \[Unreleased\]\n\n[\s\S]*?(?=\n## \[|\n$|$)/,
+        /## \[Unreleased\]\s+([\s\S]*?)(?=\n+## \[|$)/,
         `## [Unreleased]\n\n${newReleaseHeader}\n\n${processedEnglishContent}\n`
     );
     fs.writeFileSync(changelogPath, newChangelog, 'utf8');
