@@ -229,21 +229,29 @@ function getCurrentTask() {
                                     const textContent = content.find(c => c.type === 'text');
                                     if (textContent && textContent.text) {
                                         const rawText = textContent.text;
-                                        // 按行分割
-                                        const lines = rawText.split('\n');
-                                        // 从后往前找最后一个非空、非元数据行
-                                        for (let i = lines.length - 1; i >= 0; i--) {
+                                        // 清理文本：移除元数据块和时间戳，然后提取用户消息
+                                        let cleanedText = rawText;
+                                        // 移除 Conversation info (untrusted metadata) 块
+                                        cleanedText = cleanedText.replace(/Conversation info\s*\([^)]*\):[\s\S]*?```[\s\S]*?```/g, '');
+                                        // 移除 Sender (untrusted metadata) 块
+                                        cleanedText = cleanedText.replace(/Sender\s*\([^)]*\):[\s\S]*?```[\s\S]*?```/g, '');
+                                        // 移除时间戳行 [Thu 2026-03-12 19:53 GMT+8]
+                                        cleanedText = cleanedText.replace(/\[[A-Z][a-z]{2}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+[A-Z]+[0-9]*\]/g, '');
+                                        // 移除 message_id 行 [message_id: xxx]
+                                        cleanedText = cleanedText.replace(/\[message_id:[^\]]+\]/g, '');
+                                        // 移除残留的 ``` 标记
+                                        cleanedText = cleanedText.replace(/```/g, '');
+                                        // 移除飞书用户前缀 (如 ou_xxx:)
+                                        cleanedText = cleanedText.replace(/^[a-zA-Z0-9_]+:\s*/, '');
+                                        // 分割并找到第一个有效文本行
+                                        const lines = cleanedText.split('\n');
+                                        for (let i = 0; i < lines.length; i++) {
                                             let line = lines[i].trim();
-                                            // 跳过空行
+                                            // 跳过空行和残留的元数据关键词
                                             if (!line) continue;
-                                            // 跳过包含 ``` 的行（代码块）
-                                            if (line.includes('```')) continue;
-                                            // 跳过元数据行
                                             if (line.includes('untrusted metadata')) continue;
                                             if (line.includes('Conversation info')) continue;
-                                            if (line.includes('Sender')) continue;
                                             if (line.includes('message_id')) continue;
-                                            if (line.includes('[Thu') || line.includes('[Fri')) continue;
                                             // 这应该就是用户问题了
                                             if (line.length > 0) {
                                                 userQuestion = line;
