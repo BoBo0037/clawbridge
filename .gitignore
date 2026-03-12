@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Configuration & Secrets
-.env
+#.env
 .quick_tunnel_url
 
 # Binaries
@@ -31,3 +31,4 @@ test_*.js
 # Test coverage reports
 coverage/
 .nyc_output/
+package-lock.json
