@@ -412,7 +412,11 @@
 
             async function killAll() {
                 if (!confirm('⚠️ STOP ALL SCRIPTS?')) return;
-                await fetchAuth(API + '/kill', { method: 'POST' });
+                await fetchAuth(API + '/kill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: true })
+                });
             }
 
             async function restartGateway() {
