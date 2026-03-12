@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ClawBridge Installer (Git + Tarball Fallback)
-# Usage: curl -sL https://raw.githubusercontent.com/dreamwing/clawbridge/master/install.sh | bash
+# Usage: curl -sL https://raw.githubusercontent.com/BoBo0037/clawbridge/master/install.sh | bash
 
 set -e
 
@@ -17,8 +17,9 @@ else
 fi
 
 # Default values
-TARGET_DIR="skills/clawbridge"
-[ "$(basename "$PWD")" == "clawbridge" ] && [ "$(basename "$(dirname "$PWD")")" == "skills" ] && TARGET_DIR="."
+TARGET_DIR="clawbridge"
+LOCAL_MODE=false
+[ "$(basename "$PWD")" == "clawbridge" ] && TARGET_DIR="." && LOCAL_MODE=true
 
 # Arguments parsing
 PASSTHROUGH_ARGS=""
@@ -46,7 +47,10 @@ NEEDS_BUILD=true
 BACKUP_MSG=""
 
 # --- STRATEGY SELECTION ---
-if command -v git &> /dev/null; then
+if [ "$LOCAL_MODE" = true ]; then
+    INSTALL_MODE="local"
+    echo "📂 Running in local mode (source directory detected)."
+elif command -v git &> /dev/null; then
     INSTALL_MODE="git"
     echo "✅ Git detected. Using Git for incremental updates."
 else
@@ -55,9 +59,16 @@ else
 fi
 
 # ==============================
-# STRATEGY A: GIT (Preferred)
+# STRATEGY A: LOCAL (Source Directory)
 # ==============================
-if [ "$INSTALL_MODE" == "git" ]; then
+if [ "$INSTALL_MODE" == "local" ]; then
+    echo "✅ Using local source directory."
+    NEEDS_BUILD=true
+
+# ==============================
+# STRATEGY B: GIT (Preferred)
+# ==============================
+elif [ "$INSTALL_MODE" == "git" ]; then
 
     if [ -d "$TARGET_DIR" ]; then
         echo "ℹ️  Updating existing installation..."
@@ -92,8 +103,7 @@ if [ "$INSTALL_MODE" == "git" ]; then
         cd - > /dev/null
     else
         echo "⬇️  Cloning repository..."
-        mkdir -p skills
-        git clone https://github.com/dreamwing/clawbridge.git "$TARGET_DIR"
+        git clone https://github.com/BoBo0037/clawbridge "$TARGET_DIR"
         cd "$TARGET_DIR"
         
         # Post-clone: Checkout tag
@@ -106,21 +116,21 @@ if [ "$INSTALL_MODE" == "git" ]; then
     fi
 
 # ==============================
-# STRATEGY B: TARBALL (Fallback)
+# STRATEGY C: TARBALL (Fallback)
 # ==============================
 else
     # 1. Determine Latest Version (via Redirect)
     echo "🔍 Checking latest version..."
     # Hack to get latest tag from GitHub redirect without API rate limits
-    LATEST_URL=$(curl -sL -o /dev/null -w %{url_effective} https://github.com/dreamwing/clawbridge/releases/latest)
+    LATEST_URL=$(curl -sL -o /dev/null -w %{url_effective} https://github.com/BoBo0037/clawbridge/releases/latest)
     LATEST_TAG=$(basename "$LATEST_URL")
     
     if [[ "$LATEST_TAG" == "releases" ]]; then
         echo "⚠️  Could not determine latest tag. Defaulting to master."
-        DOWNLOAD_URL="https://github.com/dreamwing/clawbridge/archive/refs/heads/master.tar.gz"
+        DOWNLOAD_URL="https://github.com/BoBo0037/clawbridge/archive/refs/heads/master.tar.gz"
         VER_STRING="master"
     else
-        DOWNLOAD_URL="https://github.com/dreamwing/clawbridge/archive/refs/tags/${LATEST_TAG}.tar.gz"
+        DOWNLOAD_URL="https://github.com/BoBo0037/clawbridge/archive/refs/tags/${LATEST_TAG}.tar.gz"
         VER_STRING="$LATEST_TAG"
     fi
 
@@ -135,7 +145,7 @@ else
             CURRENT_VER="unknown"
         fi
         
-        BACKUP_DIR="skills/_backups"
+        BACKUP_DIR="_backups"
         mkdir -p "$BACKUP_DIR"
         BACKUP_FILE="$BACKUP_DIR/clawbridge_v${CURRENT_VER}_${TS}.tar.gz"
         
@@ -176,8 +186,6 @@ else
             [ -f "$TARGET_DIR/.quick_tunnel_url" ] && cp "$TARGET_DIR/.quick_tunnel_url" "$EXTRACTED_DIR/"
             
             rm -rf "$TARGET_DIR"
-        else
-            mkdir -p skills
         fi
     fi
 

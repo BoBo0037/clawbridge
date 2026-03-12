@@ -508,6 +508,15 @@ if [ "$QUICK_TUNNEL" = true ] || [ -z "$CF_TOKEN" ]; then
     fi
 fi
 
+# If Permanent Tunnel (token provided), show info about accessing the URL
+if [ ! -z "$TOKEN" ]; then
+    echo -e "\n${GREEN}🌐 Permanent Tunnel Active${NC}"
+    echo -e "Your dashboard is now accessible via your Cloudflare Tunnel domain."
+    echo -e "Please check your ${YELLOW}Cloudflare Dashboard > Zero Trust > Networks > Tunnels${NC}"
+    echo -e "to view your configured public domain."
+    echo -e "\n${BLUE}ℹ️  If the tunnel is newly created, it may take a minute to propagate.${NC}"
+fi
+
 # 7. Initialize Analytics & Pricing (Cold Start Fix)
 echo -e "\n📊 Initializing data analytics & syncing prices..."
 "$NODE_PATH" "$APP_DIR/scripts/sync_openrouter_prices.js" >/dev/null 2>&1 || true
