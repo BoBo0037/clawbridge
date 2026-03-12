@@ -67,22 +67,43 @@ router.post('/api/gateway/restart', (req, res) => {
     }
     console.log(`[Gateway] Restart requested by ${req.ip} at ${new Date().toISOString()}`);
 
-    exec("pkill -SIGTERM -f 'openclaw gateway' || true", (killErr, killStdout, killStderr) => {
-        if (killErr && killErr.code !== 1) {
-            console.warn('[Gateway] Kill warning:', killStderr);
-        }
-        setTimeout(() => {
-            const cmd = `${getOpenClawCommand()} gateway start --background`;
-            exec(cmd, { timeout: 15000 }, (err, stdout, stderr) => {
+    // Check if openclaw gateway is managed by launchctl
+    exec("launchctl list | grep -i 'openclaw.gateway'", (checkErr, stdout) => {
+        const isLaunchAgent = stdout && stdout.includes('openclaw.gateway');
+
+        if (isLaunchAgent) {
+            // Use launchctl to restart LaunchAgent
+            console.log('[Gateway] Detected LaunchAgent, using launchctl to restart');
+            exec("launchctl unload ~/Library/LaunchAgents/ai.openclaw.gateway.plist 2>/dev/null; launchctl load ~/Library/LaunchAgents/ai.openclaw.gateway.plist", { timeout: 15000 }, (err, stdout, stderr) => {
                 if (err) {
-                    console.error('[Gateway] Restart failed:', stderr);
+                    console.error('[Gateway] LaunchAgent restart failed:', stderr);
                     res.json({ status: 'error', message: stderr || err.message });
                 } else {
-                    console.log('[Gateway] Restart success:', stdout.trim());
-                    res.json({ status: 'restarted', message: stdout.trim() || 'Gateway started successfully' });
+                    console.log('[Gateway] LaunchAgent restarted successfully');
+                    res.json({ status: 'restarted', message: 'Gateway (LaunchAgent) restarted successfully' });
                 }
             });
-        }, 2000);
+        } else {
+            // Manual process - use pkill and start
+            console.log('[Gateway] Detected manual process, using pkill + start');
+            exec("pkill -SIGTERM -f 'openclaw gateway' || true", (killErr, killStdout, killStderr) => {
+                if (killErr && killErr.code !== 1) {
+                    console.warn('[Gateway] Kill warning:', killStderr);
+                }
+                setTimeout(() => {
+                    const cmd = `${getOpenClawCommand()} gateway start --background`;
+                    exec(cmd, { timeout: 15000 }, (err, stdout, stderr) => {
+                        if (err) {
+                            console.error('[Gateway] Restart failed:', stderr);
+                            res.json({ status: 'error', message: stderr || err.message });
+                        } else {
+                            console.log('[Gateway] Restart success:', stdout.trim());
+                            res.json({ status: 'restarted', message: stdout.trim() || 'Gateway started successfully' });
+                        }
+                    });
+                }, 2000);
+            });
+        }
     });
 });
 
