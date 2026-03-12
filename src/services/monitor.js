@@ -7,7 +7,7 @@ const fs = require('fs');
 const os = require('os');
 const { ID_FILE, APP_DIR } = require('../config');
 const { getOpenClawCommand } = require('./openclaw');
-const { getActiveContext } = require('./context');
+const { getActiveContext, getCurrentTask } = require('./context');
 const { logActivity, checkFileChanges } = require('./activity');
 
 // --- Global dedup state ---
@@ -131,6 +131,7 @@ function checkSystemStatus(callback) {
 
                 activities = [...new Set(activities)];
                 const ctx = getActiveContext();
+                const currentTask = getCurrentTask();
 
                 let status = 'idle';
                 let taskText = 'System Idle';
@@ -214,6 +215,7 @@ function checkSystemStatus(callback) {
                     gatewayUptime: gatewayUptime,
                     alerts: alerts,
                     scripts: runningScripts,
+                    currentTask: currentTask,
                 });
             }
         }

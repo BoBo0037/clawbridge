@@ -152,4 +152,139 @@ function getActiveContext() {
     return null;
 }
 
-module.exports = { getActiveContext };
+/**
+ * 获取当前正在执行的任务信息
+ * 返回 sessionId、用户问题、执行状态等
+ */
+function getCurrentTask() {
+    try {
+        const sessionsPath = path.join(STATE_DIR, 'agents/main/sessions/sessions.json');
+        const altPaths = [
+            sessionsPath,
+            path.join(HOME_DIR, '.openclaw/agents/main/sessions/sessions.json'),
+            path.join(WORKSPACE_DIR, '.openclaw/sessions/sessions.json'),
+            path.join(HOME_DIR, '.clawdbot/agents/main/sessions/sessions.json'),
+        ];
+
+        let targetPath = null;
+        for (const p of altPaths) {
+            if (fs.existsSync(p)) {
+                targetPath = p;
+                break;
+            }
+        }
+
+        if (!targetPath) return { tasks: [], activeCount: 0 };
+
+        let sessions;
+        try {
+            const fileContent = fs.readFileSync(targetPath, 'utf8');
+            sessions = JSON.parse(fileContent);
+        } catch (e) {
+            return { tasks: [], activeCount: 0 };
+        }
+
+        const now = Date.now();
+        const ACTIVE_THRESHOLD = 10000; // 10秒
+        const FRESHNESS_WINDOW_MS = 5 * 60 * 1000;
+        const activeTasks = [];
+
+        // 遍历所有 sessions，找到活跃的任务
+        for (const sessionKey in sessions) {
+            const session = sessions[sessionKey];
+            const updatedAt = session.updatedAt;
+            const isActive = now - updatedAt < ACTIVE_THRESHOLD;
+
+            if (!isActive) continue;
+
+            const sessionId = session.sessionId;
+            const channel = session.lastChannel || session.deliveryContext?.channel || 'unknown';
+            const duration = now - updatedAt;
+
+            // 读取最新的用户消息
+            let userQuestion = null;
+            const logFile = session.sessionFile;
+
+            if (logFile && fs.existsSync(logFile)) {
+                try {
+                    const fileContent = fs.readFileSync(logFile, 'utf8');
+                    const lines = fileContent.trim().split('\n').reverse();
+
+                    for (const line of lines) {
+                        try {
+                            const event = JSON.parse(line);
+
+                            // 跳过过期的事件
+                            if (event.time) {
+                                const evtTime = new Date(event.time).getTime();
+                                if (!isNaN(evtTime) && now - evtTime > FRESHNESS_WINDOW_MS) {
+                                    continue;
+                                }
+                            }
+
+                            // 找到用户消息 - 使用更简单的方法：按行分割，找最后有效行
+                            if (event.type === 'message' && event.message && event.message.role === 'user') {
+                                const content = event.message.content;
+                                if (Array.isArray(content)) {
+                                    const textContent = content.find(c => c.type === 'text');
+                                    if (textContent && textContent.text) {
+                                        const rawText = textContent.text;
+                                        // 按行分割
+                                        const lines = rawText.split('\n');
+                                        // 从后往前找最后一个非空、非元数据行
+                                        for (let i = lines.length - 1; i >= 0; i--) {
+                                            let line = lines[i].trim();
+                                            // 跳过空行
+                                            if (!line) continue;
+                                            // 跳过包含 ``` 的行（代码块）
+                                            if (line.includes('```')) continue;
+                                            // 跳过元数据行
+                                            if (line.includes('untrusted metadata')) continue;
+                                            if (line.includes('Conversation info')) continue;
+                                            if (line.includes('Sender')) continue;
+                                            if (line.includes('message_id')) continue;
+                                            if (line.includes('[Thu') || line.includes('[Fri')) continue;
+                                            // 这应该就是用户问题了
+                                            if (line.length > 0) {
+                                                userQuestion = line;
+                                                break;
+                                            }
+                                        }
+                                        if (userQuestion) break;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            // 跳过无效行
+                        }
+                    }
+                } catch (e) {
+                    // 读取日志失败
+                }
+            }
+
+            activeTasks.push({
+                sessionId: sessionId,
+                sessionKey: sessionKey,
+                channel: channel,
+                userQuestion: userQuestion,
+                status: 'processing',
+                isActive: true,
+                duration: duration
+            });
+        }
+
+        // 按更新时间排序，最新的在前
+        activeTasks.sort((a, b) => b.duration - a.duration);
+
+        return {
+            tasks: activeTasks,
+            activeCount: activeTasks.length
+        };
+    } catch (e) {
+        console.warn('[Context] Failed to get current task:', e.message);
+    }
+    return { tasks: [], activeCount: 0 };
+}
+
+module.exports = { getActiveContext, getCurrentTask };

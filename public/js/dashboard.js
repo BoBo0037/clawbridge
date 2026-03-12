@@ -185,6 +185,9 @@
                     // 更新系统警告
                     updateAlerts(data);
 
+                    // 更新当前任务信息
+                    updateCurrentTask(data);
+
                     // Update Scripts List
                     const scriptList = document.getElementById('running-scripts-list');
                     if (data.scripts && data.scripts.length > 0) {
@@ -262,6 +265,50 @@
                     <div class="alert-item ${a.type}">
                         <span>${a.type === 'error' ? '⛔' : '⚠️'}</span>
                         <span>${a.message}</span>
+                    </div>
+                `).join('');
+            }
+
+            function updateCurrentTask(data) {
+                const taskCard = document.getElementById('task-card');
+                if (!taskCard) return;
+
+                const taskData = data.currentTask;
+                const tasks = taskData?.tasks || [];
+                const activeCount = tasks.length;
+
+                if (activeCount === 0) {
+                    taskCard.style.display = 'none';
+                    return;
+                }
+
+                taskCard.style.display = 'block';
+
+                // 更新任务数量
+                document.getElementById('task-count').textContent = activeCount + (activeCount === 1 ? ' task' : ' tasks');
+
+                // 渲染任务列表
+                const taskList = document.getElementById('task-list');
+                taskList.innerHTML = tasks.map(task => `
+                    <div class="task-item">
+                        <div class="task-info">
+                            <div class="task-row">
+                                <span class="task-info-label">Session</span>
+                                <span class="task-info-value">${task.sessionId ? task.sessionId.substring(0, 8) + '...' : '--'}</span>
+                            </div>
+                            <div class="task-row">
+                                <span class="task-info-label">Channel</span>
+                                <span class="task-info-value">${task.channel || '--'}</span>
+                            </div>
+                            <div class="task-row">
+                                <span class="task-info-label">Question</span>
+                                <span class="task-info-value">${task.userQuestion || 'No question'}</span>
+                            </div>
+                            <div class="task-row">
+                                <span class="task-info-label">Duration</span>
+                                <span class="task-info-value">${formatUptime(task.duration)}</span>
+                            </div>
+                        </div>
                     </div>
                 `).join('');
             }
