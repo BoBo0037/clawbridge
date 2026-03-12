@@ -343,6 +343,12 @@
             border: 1px solid rgba(59, 130, 246, 0.3);
         }
 
+        .btn-start {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
         .job-list {
             display: flex;
             flex-direction: column;
@@ -562,4 +568,157 @@
         .copy-icon {
             font-size: 14px;
             opacity: 0.7;
+        }
+
+        /* Gateway Status Card */
+        .gateway-card {
+            background: linear-gradient(135deg, var(--card) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border: 1px solid var(--border);
+        }
+
+        .gateway-status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .gateway-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gateway-icon {
+            font-size: 20px;
+        }
+
+        .gateway-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .gateway-badge.running {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .gateway-badge.stopped {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .gateway-badge.checking {
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--text-dim);
+        }
+
+        .gateway-badge .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .gateway-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .gateway-detail-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .detail-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        /* Alert Area */
+        .alert-area {
+            margin: 15px 0;
+        }
+
+        .alert-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .alert-item.warning {
+            background: rgba(234, 179, 8, 0.15);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            color: var(--warning);
+        }
+
+        .alert-item.error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--danger);
+        }
+
+        /* Mini Metrics */
+        .mini-metrics {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .mini-metric {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .mini-val {
+            display: block;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .mini-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        /* Activity Card */
+        .activity-card .feed-wrapper {
+            display: none;
+        }
+
+        .activity-card #activity-feed {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
         }

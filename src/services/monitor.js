@@ -69,16 +69,32 @@ function checkSystemStatus(callback) {
     let mergedCmd = '';
 
     if (osType === 'Darwin') {
-        mergedCmd = `echo "===DISK==="; df -h / | awk 'NR==2 {print $5}'; echo "===GWPID==="; pgrep -f '[o]penclaw.*gateway' | head -n 1 || true; echo "===PS==="; ps -Ao pid,pcpu,comm,args -r | head -n 21`;
+        mergedCmd = `echo "===DISK==="; df -h / | awk 'NR==2 {print $5}'; echo "===GWPID==="; pgrep -f '[o]penclaw.*gateway' | head -n 1 || true; echo "===GWSTART==="; ps -o lstart= -p $(pgrep -f '[o]penclaw.*gateway' | head -n 1) 2>/dev/null || true; echo "===PS==="; ps -Ao pid,pcpu,comm,args -r | head -n 21`;
     } else {
-        mergedCmd = `echo "===DISK==="; df -h / | awk 'NR==2 {print $5}'; echo "===GWPID==="; pgrep -f '[o]penclaw.*gateway' | head -n 1 || true; echo "===PS==="; ps -eo pid,pcpu,comm,args --sort=-pcpu | head -n 20`;
+        mergedCmd = `echo "===DISK==="; df -h / | awk 'NR==2 {print $5}'; echo "===GWPID==="; pgrep -f '[o]penclaw.*gateway' | head -n 1 || true; echo "===GWSTART==="; ps -o lstart= -p $(pgrep -f '[o]penclaw.*gateway' | head -n 1) 2>/dev/null || true; echo "===PS==="; ps -eo pid,pcpu,comm,args --sort=-pcpu | head -n 20`;
     }
 
     exec(mergedCmd, (err, stdout) => {
         const sections = stdout ? stdout.split(/===\w+===\n?/) : [];
         const diskUsage = sections[1] ? sections[1].trim() || '--%' : '--%';
         const gatewayPid = sections[2] ? sections[2].trim() || null : null;
-        const psOutput = sections[3] || '';
+        const gatewayStartedAt = sections[3] ? sections[3].trim() || null : null;
+        const psOutput = sections[4] || '';
+
+        // 计算 Gateway 运行时间
+        let gatewayUptime = null;
+        if (gatewayStartedAt && gatewayPid) {
+            try {
+                // Darwin 格式: "Thu Mar 12 15:30:00 2026"
+                const startTime = new Date(gatewayStartedAt);
+                if (!isNaN(startTime.getTime())) {
+                    gatewayUptime = Date.now() - startTime.getTime();
+                }
+            } catch (e) {
+                console.debug('[Monitor] Failed to parse gateway start time:', e.message);
+            }
+        }
+
         {
             {
                 if (err && !psOutput) return callback({ status: 'error', task: 'Monitor Error' });
@@ -165,6 +181,23 @@ function checkSystemStatus(callback) {
                     global.lastLoggedCpu = null;
                 }
 
+                // 生成系统警告 (在 totalCpu 计算完成后)
+                const alerts = [];
+                if (!gatewayPid) {
+                    alerts.push({ type: 'error', message: 'Gateway process not running' });
+                }
+                if (totalCpu > 80) {
+                    alerts.push({ type: 'warning', message: `High CPU: ${Math.round(totalCpu)}%` });
+                }
+                const memPercent = Math.round((1 - os.freemem() / os.totalmem()) * 100);
+                if (memPercent > 90) {
+                    alerts.push({ type: 'warning', message: `High Memory: ${memPercent}%` });
+                }
+                const diskPercent = parseInt(diskUsage);
+                if (!isNaN(diskPercent) && diskPercent > 95) {
+                    alerts.push({ type: 'error', message: `Disk almost full: ${diskUsage}` });
+                }
+
                 const versions = getVersions();
 
                 callback({
@@ -177,6 +210,9 @@ function checkSystemStatus(callback) {
                     lastHeartbeat: new Date().toISOString(),
                     versions: versions,
                     gatewayPid: gatewayPid,
+                    gatewayStartedAt: gatewayStartedAt,
+                    gatewayUptime: gatewayUptime,
+                    alerts: alerts,
                     scripts: runningScripts,
                 });
             }

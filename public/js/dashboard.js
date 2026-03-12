@@ -169,6 +169,7 @@
                     const res = await fetchAuth(API + '/status');
                     const data = await res.json();
 
+                    // 更新资源指标
                     document.getElementById('cpu-val').innerText = data.cpu + '%';
                     document.getElementById('mem-val').innerText = data.mem + '%';
                     if (data.disk) document.getElementById('disk-val').innerText = data.disk;
@@ -178,12 +179,11 @@
                         document.getElementById('ver-num').innerText = 'v' + data.versions.dashboard;
                     }
 
-                    // Update PID
-                    if (data.gatewayPid) {
-                        document.getElementById('gateway-pid').innerText = data.gatewayPid;
-                    } else {
-                        document.getElementById('gateway-pid').innerText = 'Stopped / Not Found';
-                    }
+                    // 更新 Gateway 状态
+                    updateGatewayStatus(data);
+
+                    // 更新系统警告
+                    updateAlerts(data);
 
                     // Update Scripts List
                     const scriptList = document.getElementById('running-scripts-list');
@@ -199,15 +199,18 @@
                         scriptList.innerHTML = '<div style="opacity:0.5; text-align:center;">No scripts running</div>';
                     }
 
+                    // 更新活动状态 (保留用于其他页面)
                     const dot = document.getElementById('status-dot');
-                    if (data.status === 'busy') {
-                        dot.className = 'status-dot busy';
-                        document.getElementById('activity-status').innerText = '● Busy';
-                        document.getElementById('activity-status').style.color = 'var(--warning)';
-                    } else {
-                        dot.className = 'status-dot active';
-                        document.getElementById('activity-status').innerText = '● Idle';
-                        document.getElementById('activity-status').style.color = 'var(--success)';
+                    if (dot) {
+                        if (data.status === 'busy') {
+                            dot.className = 'status-dot busy';
+                            document.getElementById('activity-status').innerText = '● Busy';
+                            document.getElementById('activity-status').style.color = 'var(--warning)';
+                        } else {
+                            dot.className = 'status-dot active';
+                            document.getElementById('activity-status').innerText = '● Idle';
+                            document.getElementById('activity-status').style.color = 'var(--success)';
+                        }
                     }
 
                     if (data.task && data.task !== 'System Idle' && data.task !== lastTask) {
@@ -215,8 +218,65 @@
                         lastTask = data.task;
                     }
                 } catch (e) {
-                    document.getElementById('status-dot').className = 'status-dot error';
+                    const dot = document.getElementById('status-dot');
+                    if (dot) dot.className = 'status-dot error';
                 }
+            }
+
+            function updateGatewayStatus(data) {
+                const badge = document.getElementById('gateway-badge');
+                const badgeText = document.getElementById('gateway-badge-text');
+                const pidEl = document.getElementById('gateway-pid');
+                const uptimeEl = document.getElementById('gateway-uptime');
+                const statusEl = document.getElementById('gateway-status');
+
+                if (!badge || !badgeText) return;
+
+                if (data.gatewayPid) {
+                    badge.className = 'gateway-badge running';
+                    badgeText.innerText = 'Running';
+                    if (pidEl) pidEl.innerText = data.gatewayPid;
+                    if (uptimeEl) uptimeEl.innerText = formatUptime(data.gatewayUptime);
+                    if (statusEl) statusEl.innerText = data.status === 'busy' ? 'Active' : 'Idle';
+                } else {
+                    badge.className = 'gateway-badge stopped';
+                    badgeText.innerText = 'Stopped';
+                    if (pidEl) pidEl.innerText = '--';
+                    if (uptimeEl) uptimeEl.innerText = '--';
+                    if (statusEl) statusEl.innerText = 'Not Running';
+                }
+            }
+
+            function updateAlerts(data) {
+                const alertArea = document.getElementById('system-alerts');
+                if (!alertArea) return;
+
+                const alerts = data.alerts || [];
+
+                if (alerts.length === 0) {
+                    alertArea.innerHTML = '';
+                    return;
+                }
+
+                alertArea.innerHTML = alerts.map(a => `
+                    <div class="alert-item ${a.type}">
+                        <span>${a.type === 'error' ? '⛔' : '⚠️'}</span>
+                        <span>${a.message}</span>
+                    </div>
+                `).join('');
+            }
+
+            function formatUptime(ms) {
+                if (!ms || ms <= 0) return '--';
+                const seconds = Math.floor(ms / 1000);
+                const minutes = Math.floor(seconds / 60);
+                const hours = Math.floor(minutes / 60);
+                const days = Math.floor(hours / 24);
+
+                if (days > 0) return `${days}d ${hours % 24}h`;
+                if (hours > 0) return `${hours}h ${minutes % 60}m`;
+                if (minutes > 0) return `${minutes}m`;
+                return `${seconds}s`;
             }
 
             function addFeedItem(ts, task, method = 'append') {
@@ -417,6 +477,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ confirm: true })
                 });
+            }
+
+            async function startGateway() {
+                if (!confirm('▶️ START GATEWAY?')) return;
+                await fetchAuth(API + '/gateway/start', { method: 'POST' });
             }
 
             async function restartGateway() {

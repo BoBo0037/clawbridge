@@ -15,31 +15,39 @@ router.post('/api/kill', (req, res) => {
         return res.status(429).json({ error: 'Please wait before retrying.' });
     }
 
-    console.log(`[Kill] Stopping gateway by ${req.ip} at ${new Date().toISOString()}`);
+    console.log(`[Kill] Stopping all scripts by ${req.ip} at ${new Date().toISOString()}`);
 
     const openclawCmd = getOpenClawCommand();
 
-    // Step 1: Stop gateway
+    // 只停止 gateway，不执行 install
     exec(`${openclawCmd} gateway stop`, { timeout: 10000 }, (stopErr, stopStdout, stopStderr) => {
         if (stopErr) {
             console.warn('[Kill] Stop warning:', stopStderr || stopErr.message);
+            res.json({ status: 'stopped', message: 'Gateway stopped (with warnings)' });
+        } else {
+            console.log('[Kill] Gateway stopped successfully');
+            res.json({ status: 'stopped', message: 'Gateway stopped successfully' });
         }
-        console.log('[Kill] Gateway stopped, waiting 10 seconds...');
+    });
+});
 
-        // Step 2: Wait 10 seconds, then install and restart
-        setTimeout(() => {
-            exec(`${openclawCmd} gateway install && ${openclawCmd} gateway start --background`, { timeout: 30000 }, (startErr, startStdout, startStderr) => {
-                if (startErr) {
-                    console.error('[Kill] Start failed:', startStderr || startErr.message);
-                    res.json({ status: 'error', message: startStderr || startErr.message });
-                } else {
-                    console.log('[Kill] Gateway restarted successfully');
-                    res.json({ status: 'stopped_and_restarted', message: 'Gateway stopped and restarted after 10 seconds' });
-                }
-            });
-        }, 10000);
+router.post('/api/gateway/start', (req, res) => {
+    if (!rateLimit('gateway_start', 5000)) {
+        return res.status(429).json({ error: 'Please wait at least 5 seconds before retrying.' });
+    }
+    console.log(`[Gateway] Start requested by ${req.ip} at ${new Date().toISOString()}`);
 
-        res.json({ status: 'stopping', message: 'Gateway stopped, will restart in 10 seconds...' });
+    const openclawCmd = getOpenClawCommand();
+
+    // 先 install，再 start
+    exec(`${openclawCmd} gateway install && ${openclawCmd} gateway start --background`, { timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) {
+            console.error('[Gateway] Start failed:', stderr || err.message);
+            res.json({ status: 'error', message: stderr || err.message });
+        } else {
+            console.log('[Gateway] Started successfully:', stdout.trim());
+            res.json({ status: 'started', message: stdout.trim() || 'Gateway started successfully' });
+        }
     });
 });
 
