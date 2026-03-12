@@ -185,26 +185,61 @@ function getCurrentTask() {
         }
 
         const now = Date.now();
-        const ACTIVE_THRESHOLD = 10000; // 10秒
-        const FRESHNESS_WINDOW_MS = 5 * 60 * 1000;
+        const FRESHNESS_WINDOW_MS = 5 * 60 * 1000; // 5分钟新鲜度窗口
         const activeTasks = [];
 
         // 遍历所有 sessions，找到活跃的任务
         for (const sessionKey in sessions) {
             const session = sessions[sessionKey];
             const updatedAt = session.updatedAt;
-            const isActive = now - updatedAt < ACTIVE_THRESHOLD;
 
-            if (!isActive) continue;
+            // 检查 session 是否在新鲜度窗口内
+            const isRecent = now - updatedAt < FRESHNESS_WINDOW_MS;
+            if (!isRecent) continue;
 
             const sessionId = session.sessionId;
             const channel = session.lastChannel || session.deliveryContext?.channel || 'unknown';
             const duration = now - updatedAt;
 
+            // 检查 session 文件的最后一条消息，判断任务是否真正完成
+            let isTaskCompleted = false;
+            const logFile = session.sessionFile;
+            if (logFile && fs.existsSync(logFile)) {
+                try {
+                    const fileContent = fs.readFileSync(logFile, 'utf8');
+                    const lines = fileContent.trim().split('\n');
+                    // 从后往前找最后一条消息
+                    for (let i = lines.length - 1; i >= 0; i--) {
+                        try {
+                            const event = JSON.parse(lines[i]);
+                            if (event.type === 'message' && event.message) {
+                                // 如果最后一条是 assistant 消息且不是 toolCall，说明任务已完成
+                                if (event.message.role === 'assistant') {
+                                    const content = event.message.content;
+                                    if (Array.isArray(content)) {
+                                        // 检查是否有 toolCall（如果有 toolCall，任务还在进行）
+                                        const hasToolCall = content.some(c => c.type === 'toolCall');
+                                        if (!hasToolCall) {
+                                            isTaskCompleted = true;
+                                        }
+                                    }
+                                }
+                                break; // 找到最后一条消息后退出
+                            }
+                        } catch (e) {
+                            // 跳过无效行
+                        }
+                    }
+                } catch (e) {
+                    // 读取日志失败
+                }
+            }
+
+            // 如果任务已完成，跳过
+            if (isTaskCompleted) continue;
+
             // 读取最新的用户消息
             let userQuestion = null;
-            const logFile = session.sessionFile;
-
             if (logFile && fs.existsSync(logFile)) {
                 try {
                     const fileContent = fs.readFileSync(logFile, 'utf8');
