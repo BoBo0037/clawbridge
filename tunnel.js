@@ -4,7 +4,16 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const BIN_NAME = 'cloudflared';
-const BIN_PATH = path.join(__dirname, BIN_NAME);
+// Prefer homebrew installed cloudflared, fallback to local binary
+let BIN_PATH = path.join(__dirname, BIN_NAME);
+const { execSync } = require('child_process');
+try {
+    const hbPath = execSync('which cloudflared', { encoding: 'utf8' }).trim();
+    if (hbPath && fs.existsSync(hbPath)) {
+        BIN_PATH = hbPath;
+        console.log('[Tunnel] Using homebrew cloudflared:', BIN_PATH);
+    }
+} catch (e) { /* homebrew cloudflared not found, use local */ }
 const PID_FILE = path.join(__dirname, '.cloudflared.pid');
 
 function getDownloadUrl() {
